@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Button,
@@ -165,7 +165,7 @@ const Products = () => {
                 overflow: 'hidden',
             },
         },
-        muiTableBodyRowProps: ({ row }) => ({
+        muiTableBodyRowProps: () => ({
             sx: {
                 backgroundColor: 'transparent',
                 '&:hover': {

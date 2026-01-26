@@ -25,6 +25,7 @@ export const masterService = {
     async updatePartner(id: string, partner: Partial<MasterPartner>) {
         const { data, error } = await supabase
             .from('master_partners')
+            // @ts-ignore
             .update(partner as any)
             .eq('id', id)
             .select()
@@ -56,6 +57,7 @@ export const masterService = {
     async updateProduct(id: string, product: Partial<MasterProduct>) {
         const { data, error } = await supabase
             .from('master_products')
+            // @ts-ignore
             .update(product as any)
             .eq('id', id)
             .select()

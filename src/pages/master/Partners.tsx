@@ -16,7 +16,7 @@ import {
     Switch,
     FormControlLabel
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 import {
     MaterialReactTable,
     useMaterialReactTable,
@@ -247,7 +247,7 @@ const Partners = () => {
                 overflow: 'hidden', // rounded corners
             },
         },
-        muiTableBodyRowProps: ({ row }) => ({
+        muiTableBodyRowProps: () => ({
             sx: {
                 backgroundColor: 'transparent',
                 '&:hover': {
