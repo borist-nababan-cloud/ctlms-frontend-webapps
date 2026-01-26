@@ -8,6 +8,7 @@ interface AuthContextType {
     user: User | null;
     profile: UserProfile | null;
     loading: boolean;
+    authError: string | null;
     signOut: () => Promise<void>;
 }
 
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
     user: null,
     profile: null,
     loading: true,
+    authError: null,
     signOut: async () => { },
 });
 
@@ -26,6 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState<string | null>(null);
 
     useEffect(() => {
         // 1. Get initial session
@@ -37,10 +40,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } else {
                 setLoading(false);
             }
+        }).catch(() => {
+            setLoading(false);
         });
 
         // 2. Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log(`AuthContext: onAuthStateChange event=${event}`, session?.user?.email);
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
@@ -56,44 +62,70 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const fetchOrCreateProfile = async (currentUser: User) => {
+        setAuthError(null);
+        console.log('AuthContext: fetchOrCreateProfile', currentUser.id);
         try {
             // Check if profile exists
-            const { data, error } = await supabase
+            console.log('AuthContext: checking for existing profile...');
+
+            // Add timeout to detect hang
+            const queryPromise = supabase
                 .from('user_profiles')
                 .select('*')
-                .eq('id', currentUser.id)
-                .single();
+                .eq('uuid', currentUser.id)
+                .maybeSingle();
 
-            if (error && error.code !== 'PGRST116') {
-                console.error('Error fetching profile:', error);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT_CHECKING_PROFILE')), 5000)
+            );
+
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+
+            if (error) {
+                console.error('AuthContext: Profile Check Error', error);
+                if (error.message === 'TIMEOUT_CHECKING_PROFILE') {
+                    alert('Database connection timed out. Please check your connection.');
+                    return;
+                }
             }
 
             if (data) {
-                setProfile(data);
+                // Scenario B: Profile Exists
+                const userProfile = data as UserProfile;
+                if (userProfile.user_role === 7) {
+                    console.log('User has Role 7 (Unassigned). Signing out...');
+                    await supabase.auth.signOut();
+                    setAuthError('UNASSIGNED_ROLE');
+                    // throw new Error('UNASSIGNED_ROLE'); // Optional, mainly for flow control if needed
+                    return;
+                }
+                setProfile(userProfile);
             } else {
-                // Auto-insert profile
+                // Scenario A: Profile Does Not Exist (First Login)
+                // Auto-insert profile with Role 7
                 const newProfile: UserProfile = {
-                    id: currentUser.id,
+                    uuid: currentUser.id,
                     email: currentUser.email!,
-                    role_id: null, // Default
+                    user_role: 7, // Default Unassigned
+                    wh_id: null,
+                    real_name: null,
                     // created_at is handled by DB default
                 };
 
-                const { data: insertedData, error: insertError } = await supabase
+                const { error: insertError } = await supabase
                     .from('user_profiles')
-                    .insert(newProfile as any)
-                    .select()
-                    .single();
+                    .insert(newProfile as any);
 
                 if (insertError) {
                     console.error('Error creating profile:', insertError);
                 } else {
-                    console.log('Profile auto-created:', insertedData);
-                    setProfile(insertedData);
+                    console.log('Profile auto-created with Role 7. Signing out...');
+                    await supabase.auth.signOut();
+                    setAuthError('UNASSIGNED_ROLE');
                 }
             }
-        } catch (err) {
-            console.error('Unexpected error in profile logic:', err);
+        } catch (err: any) {
+            console.error('Error in profile logic:', err);
         } finally {
             setLoading(false);
         }
@@ -104,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ session, user, profile, loading, signOut }}>
+        <AuthContext.Provider value={{ session, user, profile, loading, authError, signOut }}>
             {children}
         </AuthContext.Provider>
     );
