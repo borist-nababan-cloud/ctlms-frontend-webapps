@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import type { InventoryCurrent, InventoryLedger } from '../types/supabase';
+import type { InventoryCurrent } from '../types/supabase';
 
 export const inventoryService = {
 
