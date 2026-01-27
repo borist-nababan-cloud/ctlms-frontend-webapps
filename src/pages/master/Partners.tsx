@@ -25,6 +25,7 @@ import {
 import { useColorMode } from '../../context/ThemeContext';
 import { masterService } from '../../lib/masterService';
 import type { MasterPartner } from '../../types/supabase';
+import { useTranslation } from 'react-i18next';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -54,6 +55,7 @@ function CustomTabPanel(props: TabPanelProps) {
 
 const Partners = () => {
     const { mode } = useColorMode();
+    const { t } = useTranslation();
     const [partners, setPartners] = useState<MasterPartner[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -230,7 +232,7 @@ const Partners = () => {
                 startIcon={<EditIcon />}
                 size="small"
             >
-                Edit
+                {t('common.edit')}
             </Button>
         ),
         // Futuristic Glass Theme Props
@@ -292,7 +294,7 @@ const Partners = () => {
                         boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
                     }}
                 >
-                    Add Partner
+                    {t('common.add_new')} {t('sidebar.partners')}
                 </Button>
             </Box>
 
@@ -447,8 +449,8 @@ const Partners = () => {
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleClose}>Cancel</Button>
-                    <Button onClick={handleSubmit} variant="contained">Save</Button>
+                    <Button onClick={handleClose}>{t('common.cancel')}</Button>
+                    <Button onClick={handleSubmit} variant="contained">{t('common.save')}</Button>
                 </DialogActions>
             </Dialog>
         </Container>

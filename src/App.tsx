@@ -8,6 +8,11 @@ import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
 import Partners from './pages/master/Partners';
 import Products from './pages/master/Products';
+import ShipmentList from './pages/shipments/ShipmentList';
+import TallyInput from './pages/logistics/TallyInput';
+import Monitoring from './pages/logistics/Monitoring';
+import InventoryDashboard from './pages/inventory/InventoryDashboard';
+
 
 // AG Grid Styles
 import 'ag-grid-community/styles/ag-grid.css';
@@ -27,6 +32,11 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/master/partners" element={<Partners />} />
                 <Route path="/master/products" element={<Products />} />
+                <Route path="/shipments" element={<ShipmentList />} />
+                <Route path="/logistics/input" element={<TallyInput />} />
+                <Route path="/logistics/monitoring" element={<Monitoring />} />
+                <Route path="/inventory" element={<InventoryDashboard />} />
+
                 <Route path="/settings" element={<Settings />} />
               </Route>
             </Route>

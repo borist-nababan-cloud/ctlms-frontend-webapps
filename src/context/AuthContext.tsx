@@ -46,7 +46,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // 2. Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log(`AuthContext: onAuthStateChange event=${event}`, session?.user?.email);
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
@@ -62,54 +61,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const fetchOrCreateProfile = async (currentUser: User) => {
+        // PERF: Prevent redundant fetching
+        if (profile && profile.uuid === currentUser.id) {
+            setLoading(false);
+            return;
+        }
+
         setAuthError(null);
         console.log('AuthContext: fetchOrCreateProfile', currentUser.id);
+
         try {
-            // Check if profile exists
             console.log('AuthContext: checking for existing profile...');
 
-            // Add timeout to detect hang
+            // Create the query promise
             const queryPromise = supabase
                 .from('user_profiles')
                 .select('*')
                 .eq('uuid', currentUser.id)
                 .maybeSingle();
 
+            // Create a timeout promise (10 seconds)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT_CHECKING_PROFILE')), 5000)
+                setTimeout(() => reject(new Error('TIMEOUT_CHECKING_PROFILE')), 10000)
             );
 
+            // Race them
             const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
             if (error) {
                 console.error('AuthContext: Profile Check Error', error);
-                if (error.message === 'TIMEOUT_CHECKING_PROFILE') {
-                    alert('Database connection timed out. Please check your connection.');
-                    return;
-                }
-            }
-
-            if (data) {
+                // Don't block the app on profile error, but show a message
+                setAuthError(`Profile Error: ${error.message}`);
+                // Proceed without profile? Or retry?
+                // For now, allow rendering but profile will be null
+            } else if (data) {
                 // Scenario B: Profile Exists
                 const userProfile = data as UserProfile;
                 if (userProfile.user_role === 7) {
-                    console.log('User has Role 7 (Unassigned). Signing out...');
+                    // Role 7 logic...
+                    // Note: You can keep the auto-logout if strict, or just warn
                     await supabase.auth.signOut();
                     setAuthError('UNASSIGNED_ROLE');
-                    // throw new Error('UNASSIGNED_ROLE'); // Optional, mainly for flow control if needed
                     return;
                 }
                 setProfile(userProfile);
             } else {
                 // Scenario A: Profile Does Not Exist (First Login)
-                // Auto-insert profile with Role 7
-                const newProfile: UserProfile = {
+                const newProfile: Partial<UserProfile> = {
                     uuid: currentUser.id,
                     email: currentUser.email!,
-                    user_role: 7, // Default Unassigned
-                    wh_id: null,
-                    real_name: null,
-                    // created_at is handled by DB default
+                    user_role: 7,
                 };
 
                 const { error: insertError } = await supabase
@@ -118,15 +119,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                 if (insertError) {
                     console.error('Error creating profile:', insertError);
+                    setAuthError('PROFILE_CREATION_FAILED');
                 } else {
-                    console.log('Profile auto-created with Role 7. Signing out...');
                     await supabase.auth.signOut();
                     setAuthError('UNASSIGNED_ROLE');
                 }
             }
         } catch (err: any) {
             console.error('Error in profile logic:', err);
+            // Specifically handle timeout to inform user but unblock UI
+            if (err.message === 'TIMEOUT_CHECKING_PROFILE') {
+                console.warn('Profile fetch timed out. Proceeding with limited access.');
+                setAuthError('Connection timed out. Some features may be limited.');
+            }
         } finally {
+            // CRITICAL: Always turn off loading so the app can render
             setLoading(false);
         }
     };

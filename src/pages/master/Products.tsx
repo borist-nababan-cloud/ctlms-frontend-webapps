@@ -76,7 +76,7 @@ const Products = () => {
         },
         {
             accessorKey: 'current_price',
-            header: 'Current Price',
+            header: 'Price / Kg',
             size: 150,
             Cell: ({ cell }) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(cell.getValue<number>()),
         },
@@ -246,7 +246,7 @@ const Products = () => {
                             <MenuItem value="PUBLISHED_FINISHED">PUBLISHED_FINISHED</MenuItem>
                         </TextField>
                         <TextField
-                            label="Current Price"
+                            label="Price per Kg (IDR)"
                             type="number"
                             fullWidth
                             value={formData.current_price}

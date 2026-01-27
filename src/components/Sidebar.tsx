@@ -22,14 +22,19 @@ import {
     ExpandLess,
     ExpandMore,
     People as PartnersIcon,
-    Category as ProductsIcon
+    Category as ProductsIcon,
+    ExitToApp as LogoutIcon,
+    Input as InputIcon,
+    Monitor as MonitorIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 
+import { useTranslation } from 'react-i18next';
+
 interface MenuItemInfo {
-    label: string;
+    key: string; // Changed from label to key for translation
     path?: string;
     icon: React.ReactNode;
     allowedRoles: number[];
@@ -37,22 +42,30 @@ interface MenuItemInfo {
 }
 
 const MENU_ITEMS: MenuItemInfo[] = [
-    { label: 'Dashboard', path: '/', icon: <DashboardIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7] },
+    { key: 'sidebar.dashboard', path: '/', icon: <DashboardIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7] },
     {
-        label: 'Master Data',
+        key: 'sidebar.master_data',
         icon: <MasterDataIcon />,
         allowedRoles: [1, 2, 3, 4, 5, 6],
         children: [
-            { label: 'Partners', path: '/master/partners', icon: <PartnersIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-            { label: 'Products', path: '/master/products', icon: <ProductsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.partners', path: '/master/partners', icon: <PartnersIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.products', path: '/master/products', icon: <ProductsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
         ]
     },
-    { label: 'Procurement', path: '/procurement', icon: <ProcurementIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-    { label: 'Inventory', path: '/inventory', icon: <InventoryIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-    { label: 'Sales', path: '/sales', icon: <SalesIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-    { label: 'Logistics', path: '/logistics', icon: <LogisticsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-    { label: 'Finance', path: '/finance', icon: <FinanceIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-    { label: 'Settings', path: '/settings', icon: <SettingsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7] },
+    { key: 'sidebar.procurement', path: '/shipments', icon: <ProcurementIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+    { key: 'sidebar.inventory', path: '/inventory', icon: <InventoryIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+    { key: 'sidebar.sales', path: '/sales', icon: <SalesIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+    {
+        key: 'sidebar.logistics',
+        icon: <LogisticsIcon />,
+        allowedRoles: [1, 2, 3, 4, 5, 6],
+        children: [
+            { key: 'sidebar.tally_input', path: '/logistics/input', icon: <InputIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.monitoring', path: '/logistics/monitoring', icon: <MonitorIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+        ]
+    },
+    { key: 'sidebar.finance', path: '/finance', icon: <FinanceIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+    { key: 'sidebar.settings', path: '/settings', icon: <SettingsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7] },
 ];
 
 
@@ -63,7 +76,8 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { profile } = useAuth();
+    const { profile, signOut } = useAuth();
+    const { t } = useTranslation();
     const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({});
 
     const userRole = profile?.user_role ? Number(profile.user_role) : 0;
@@ -74,21 +88,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         if (onClose) onClose();
     };
 
-    const handleToggleSubMenu = (label: string) => {
-        setOpenSubMenus(prev => ({ ...prev, [label]: !prev[label] }));
+    const handleToggleSubMenu = (key: string) => {
+        setOpenSubMenus(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     const renderMenuItem = (item: MenuItemInfo) => {
         if (!item.allowedRoles.includes(userRole)) return null;
 
         if (item.children) {
-            const isOpen = openSubMenus[item.label] || false;
+            const isOpen = openSubMenus[item.key] || false;
             return (
-                <React.Fragment key={item.label}>
+                <React.Fragment key={item.key}>
                     <ListItem disablePadding>
-                        <ListItemButton onClick={() => handleToggleSubMenu(item.label)}>
+                        <ListItemButton onClick={() => handleToggleSubMenu(item.key)}>
                             <ListItemIcon>{item.icon}</ListItemIcon>
-                            <ListItemText primary={item.label} />
+                            <ListItemText primary={t(item.key)} />
                             {isOpen ? <ExpandLess /> : <ExpandMore />}
                         </ListItemButton>
                     </ListItem>
@@ -98,7 +112,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                 if (!child.allowedRoles.includes(userRole)) return null;
                                 const isChildActive = location.pathname === child.path;
                                 return (
-                                    <ListItem key={child.label} disablePadding>
+                                    <ListItem key={child.key} disablePadding>
                                         <ListItemButton
                                             onClick={() => handleNavigate(child.path!)}
                                             selected={isChildActive}
@@ -108,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                                                 {child.icon}
                                             </ListItemIcon>
                                             <ListItemText
-                                                primary={child.label}
+                                                primary={t(child.key)}
                                                 sx={{ color: isChildActive ? 'primary.main' : 'inherit' }}
                                             />
                                         </ListItemButton>
@@ -123,12 +137,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
         const isActive = location.pathname === item.path;
         return (
-            <ListItem key={item.label} disablePadding>
+            <ListItem key={item.key} disablePadding>
                 <ListItemButton onClick={() => handleNavigate(item.path!)} selected={isActive}>
                     <ListItemIcon sx={{ color: isActive ? 'primary.main' : 'inherit' }}>
                         {item.icon}
                     </ListItemIcon>
-                    <ListItemText primary={item.label} sx={{ color: isActive ? 'primary.main' : 'inherit' }} />
+                    <ListItemText primary={t(item.key)} sx={{ color: isActive ? 'primary.main' : 'inherit' }} />
                 </ListItemButton>
             </ListItem>
         );
@@ -144,6 +158,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <Divider />
             <List sx={{ flexGrow: 1, overflowY: 'auto' }}>
                 {MENU_ITEMS.map((item) => renderMenuItem(item))}
+            </List>
+            <Divider />
+            <List disablePadding>
+                <ListItem disablePadding>
+                    <ListItemButton onClick={() => signOut()}>
+                        <ListItemIcon>
+                            <LogoutIcon color="error" />
+                        </ListItemIcon>
+                        <ListItemText primary={t('sidebar.logout')} sx={{ color: 'error.main', fontWeight: 'bold' }} />
+                    </ListItemButton>
+                </ListItem>
             </List>
             <Divider />
             <Box sx={{ p: 2, textAlign: 'center' }}>

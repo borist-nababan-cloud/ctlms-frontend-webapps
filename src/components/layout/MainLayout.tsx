@@ -10,6 +10,7 @@ import CopyrightIcon from '@mui/icons-material/Copyright';
 import { DarkMode, LightMode } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useColorMode } from '../../context/ThemeContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const drawerWidth = 260; // Standard sidebar width
 
@@ -65,6 +66,7 @@ export default function MainLayout() {
 
                     {/* User Profile Avatar / Settings */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <LanguageSwitcher />
                         <Tooltip title="Toggle Theme">
                             <IconButton color="inherit" onClick={toggleColorMode}>
                                 {mode === 'dark' ? <LightMode /> : <DarkMode />}

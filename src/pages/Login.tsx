@@ -13,8 +13,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const Login = () => {
+    const { t } = useTranslation();
     const { authError } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -34,22 +36,18 @@ const Login = () => {
         e.preventDefault();
         setLoading(true);
         setError(null);
-        console.log('Login: handleLogin started');
 
         try {
-            console.log('Login: calling signInWithPassword');
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
-            console.log('Login: signInWithPassword returned', { data, error });
 
             if (error) {
                 console.error('Login: signIn error', error);
                 setError(error.message);
                 setLoading(false);
             } else {
-                console.log('Login: signIn success');
                 setLoading(false);
                 navigate('/');
             }
@@ -78,7 +76,7 @@ const Login = () => {
 
                     <Box component="form" onSubmit={handleLogin} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <TextField
-                            label="Email"
+                            label={t('auth.email')}
                             type="email"
                             variant="outlined"
                             fullWidth
@@ -87,7 +85,7 @@ const Login = () => {
                             required
                         />
                         <TextField
-                            label="Password"
+                            label={t('auth.password')}
                             type="password"
                             variant="outlined"
                             fullWidth
@@ -103,12 +101,12 @@ const Login = () => {
                             disabled={loading}
                             fullWidth
                         >
-                            {loading ? 'Signing in...' : 'Sign In'}
+                            {loading ? t('common.loading') : t('auth.sign_in')}
                         </Button>
                     </Box>
                 </CardContent>
             </Card>
-            
+
             <Box component="footer" sx={{ textAlign: 'center', color: 'text.secondary', typography: 'body2' }}>
                 {import.meta.env.VITE_COMPANY_NAME} - {import.meta.env.VITE_APP_VERSION}
             </Box>
