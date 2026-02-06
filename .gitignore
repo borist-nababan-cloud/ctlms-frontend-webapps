@@ -32,6 +32,8 @@ docs/*
 *.md
 !README.md
 !docs/DEPLOYMENT_COOLIFY.md
+my-cred
+database-docs
 
 
 nul

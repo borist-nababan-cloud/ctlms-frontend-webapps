@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Button,
@@ -13,11 +13,10 @@ import {
     CircularProgress,
     Snackbar
 } from '@mui/material';
-import { PhotoCamera, Image } from '@mui/icons-material';
+import { PhotoCamera } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { shipmentService } from '../../lib/shipmentService';
 import { logisticsService } from '../../lib/logisticsService';
-import { supabase } from '../../lib/supabaseClient';
 import type { ShipmentDetailed, TruckingLog } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
 
@@ -26,7 +25,6 @@ const TallyInput = () => {
     const [activeShipments, setActiveShipments] = useState<ShipmentDetailed[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [scanning, setScanning] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -72,81 +70,17 @@ const TallyInput = () => {
         }
     };
 
-
-
-    // Helper to convert file to base64
-    const fileToBase64 = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-        });
-    };
-
-    const handleScanTicket = async (event: { target: { files: FileList | null } }) => {
+    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
             const file = event.target.files[0];
-            // Set preview immediately
             setSelectedFile(file);
             setPreviewUrl(URL.createObjectURL(file));
-
-            setScanning(true);
-            setError(null);
-
-            try {
-                // Convert to Base64
-                const base64 = await fileToBase64(file);
-
-                // Invoke Edge Function
-                const { data, error } = await supabase.functions.invoke('ocr-ticket', {
-                    body: { imageBase64: base64 }
-                });
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!data) throw new Error('No data returned from OCR');
-
-                // Handle tunneled errors (status 200 but logic error)
-                if (data.success === false || data.error) {
-                    throw new Error(`OCR Server Error: ${data.error}`);
-                }
-
-                // Map results to form
-                if (data.truck_plate) setValue('truck_plate', data.truck_plate.toUpperCase());
-                if (data.ticket_number) setValue('ticket_number', data.ticket_number);
-                if (data.gross_weight) setValue('gross_weight', data.gross_weight);
-                if (data.tare_weight) setValue('tare_weight', data.tare_weight);
-
-                setSuccessMsg('OCR Scanned Successfully');
-
-            } catch (err: any) {
-
-                // Specific handling for 401 (often environment mismatch locally)
-                if (err.status === 401 || (err.message && err.message.includes('401'))) {
-                    setError('Unauthorized (401). Check if VITE_SUPABASE_ANON_KEY in .env matches your local "supabase status" output.');
-                } else if (err.message && err.message.includes('OCR Server Error')) {
-                    setError(err.message); // Show the tunneled error from backend
-                } else {
-                    setError('Failed to scan ticket. Please try again or input manually.');
-                }
-            } finally {
-                setScanning(false);
-            }
         }
     };
 
     const onSubmit = async (data: Partial<TruckingLog>) => {
         // Validate File
         try {
-            if (!data.shipment_id) {
-                setError('Please Select Shipment');
-                return;
-            }
-
-            setSubmitting(true);
             // 1. Upload Photo (Optional)
             let publicUrl: string | null = null;
             if (selectedFile) {
@@ -220,57 +154,6 @@ const TallyInput = () => {
                                 )}
                             />
 
-                            {/* OCR & Camera Buttons */}
-                            <Stack direction="row" spacing={2}>
-                                {/* Camera Button */}
-                                <Button
-                                    variant="outlined"
-                                    component="label"
-                                    startIcon={scanning ? <CircularProgress size={20} /> : <PhotoCamera />}
-                                    fullWidth
-                                    color="primary"
-                                    sx={{ py: 1.5, borderStyle: 'dashed', borderWidth: 2 }}
-                                    disabled={scanning || submitting}
-                                >
-                                    {scanning ? 'Scanning...' : 'Camera'}
-                                    <input
-                                        hidden
-                                        accept="image/*"
-                                        type="file"
-                                        onChange={handleScanTicket}
-                                        {...({ capture: 'environment' } as any)} // Force capture attribute
-                                    />
-                                </Button>
-
-                                {/* Gallery Button */}
-                                <Button
-                                    variant="outlined"
-                                    component="label"
-                                    startIcon={scanning ? <CircularProgress size={20} /> : <Image />}
-                                    fullWidth
-                                    color="secondary"
-                                    sx={{ py: 1.5, borderStyle: 'dashed', borderWidth: 2 }}
-                                    disabled={scanning || submitting}
-                                >
-                                    {scanning ? 'Scanning...' : 'Gallery'}
-                                    <input
-                                        hidden
-                                        accept="image/*"
-                                        // No capture attribute for Gallery
-                                        type="file"
-                                        onChange={handleScanTicket}
-                                    />
-                                </Button>
-                            </Stack>
-
-
-                            {/* Image Preview */}
-                            {previewUrl && (
-                                <Box sx={{ borderRadius: 2, overflow: 'hidden', maxHeight: 200, display: 'flex', justifyContent: 'center', bgcolor: '#000' }}>
-                                    <img src={previewUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }} />
-                                </Box>
-                            )}
-
                             {/* Truck Info */}
                             <Controller
                                 name="truck_plate"
@@ -282,7 +165,6 @@ const TallyInput = () => {
                                         label="Truck Plate No."
                                         placeholder="e.g. B 1234 XY"
                                         fullWidth
-                                        InputLabelProps={{ shrink: true }}
                                         onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                                     />
                                 )}
@@ -297,8 +179,7 @@ const TallyInput = () => {
                                         {...field}
                                         label="Weighing Ticket No."
                                         fullWidth
-                                        type="number" // Changed to number to match OCR output type
-                                        InputLabelProps={{ shrink: true }}
+                                        type="number"
                                     />
                                 )}
                             />
@@ -315,7 +196,6 @@ const TallyInput = () => {
                                             label="Gross (Kg)"
                                             type="number"
                                             fullWidth
-                                            InputLabelProps={{ shrink: true }}
                                         />
                                     )}
                                 />
@@ -329,7 +209,6 @@ const TallyInput = () => {
                                             label="Tare (Kg)"
                                             type="number"
                                             fullWidth
-                                            InputLabelProps={{ shrink: true }}
                                         />
                                     )}
                                 />
@@ -343,15 +222,40 @@ const TallyInput = () => {
                                 </Typography>
                             </Box>
 
+                            {/* Camera Input */}
+                            <Button
+                                variant="outlined"
+                                component="label"
+                                startIcon={<PhotoCamera />}
+                                fullWidth
+                                sx={{ py: 1.5, borderStyle: 'dashed' }}
+                            >
+                                {selectedFile ? 'Change Photo' : 'Take Ticket Photo'}
+                                <input
+                                    hidden
+                                    accept="image/*"
+                                    capture="environment" // Request rear camera on mobile
+                                    type="file"
+                                    onChange={handleFileSelect}
+                                />
+                            </Button>
+
+                            {/* Image Preview */}
+                            {previewUrl && (
+                                <Box sx={{ mt: 1, borderRadius: 2, overflow: 'hidden', maxHeight: 200, display: 'flex', justifyContent: 'center', bgcolor: '#000' }}>
+                                    <img src={previewUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }} />
+                                </Box>
+                            )}
+
                             {/* Submit */}
                             <Button
                                 type="submit"
                                 variant="contained"
                                 size="large"
-                                disabled={submitting || scanning}
+                                disabled={submitting}
                                 sx={{ mt: 2, py: 1.5, fontSize: '1.1rem' }}
                             >
-                                {submitting ? <CircularProgress size={24} color="inherit" /> : 'SUBMIT DATA'}
+                                {submitting ? <CircularProgress size={24} /> : 'SUBMIT DATA'}
                             </Button>
 
                         </Stack>
@@ -366,9 +270,8 @@ const TallyInput = () => {
                 message={successMsg}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             />
-        </Container >
+        </Container>
     );
 };
 
 export default TallyInput;
-
