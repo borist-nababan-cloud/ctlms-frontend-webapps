@@ -8,9 +8,15 @@ export const logisticsService = {
         try {
             const { error } = await supabase.storage
                 .from('tickets')
-                .upload(path, file);
+                .upload(path, file, {
+                    contentType: file.type,
+                    upsert: true
+                });
 
-            if (error) throw error;
+            if (error) {
+                console.error("Detail Error Supabase (tickets):", error);
+                throw error;
+            }
 
             // Get Public URL
             const { data: { publicUrl } } = supabase.storage

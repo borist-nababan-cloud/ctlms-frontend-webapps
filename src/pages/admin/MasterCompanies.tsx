@@ -228,17 +228,18 @@ const MasterCompanies = () => {
             let finalLogoUrl = data.logo_url || null;
 
             if (logoFile) {
-                const cleanedName = logoFile.name.replace(/[^a-zA-Z0-9.]/g, '_');
-                const filePath = `companies/${Date.now()}_${cleanedName}`;
+                const cleanFileName = logoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                const filePath = `companies/${Date.now()}_${cleanFileName}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('company-logos')
                     .upload(filePath, logoFile, {
-                        cacheControl: '3600',
+                        contentType: logoFile.type,
                         upsert: true
                     });
 
                 if (uploadError) {
+                    console.error("Detail Error Supabase:", uploadError);
                     throw new Error(`Upload failed: ${uploadError.message}`);
                 }
 
