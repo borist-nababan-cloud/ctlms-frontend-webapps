@@ -27,7 +27,6 @@ const Login = () => {
     // Clear any stale sessions on mount, unless we just got kicked out due to role 7
     useEffect(() => {
         if (authError !== 'UNASSIGNED_ROLE') {
-            console.log('Login: Clearing stale session...');
             supabase.auth.signOut();
         }
     }, []);

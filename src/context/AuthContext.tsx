@@ -40,24 +40,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Prevent concurrent fetching for the same user
         if (fetchingUuidRef.current === currentUser.id) {
-            console.log('AuthContext: profile query already in progress for uuid:', currentUser.id);
             return;
         }
         fetchingUuidRef.current = currentUser.id;
 
         setAuthError(null);
-        console.log('AuthContext: fetchOrCreateProfile', currentUser.id);
 
         try {
-            console.log('AuthContext: checking for existing profile...');
-
-            console.log('AuthContext: starting supabase query for profile with uuid:', currentUser.id);
             const { data, error } = await supabase
                 .from('user_profiles')
                 .select('*')
                 .eq('uuid', currentUser.id)
                 .maybeSingle();
-            console.log('AuthContext: supabase query completed', { data, error });
 
             if (error) {
                 console.error('AuthContext: Profile Check Error', error.message, error);
@@ -128,8 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
 
         // 2. Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            console.log('AuthContext: onAuthStateChange event:', event, session?.user?.id);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
