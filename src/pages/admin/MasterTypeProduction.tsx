@@ -1,0 +1,391 @@
+import { useState, useEffect, useMemo } from 'react';
+import {
+    Box,
+    Button,
+    Container,
+    Typography,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Alert,
+    Stack
+} from '@mui/material';
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import { AgGridReact } from 'ag-grid-react';
+import { ModuleRegistry } from 'ag-grid-community';
+import { AllCommunityModule } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+import { useForm, Controller } from 'react-hook-form';
+import { useColorMode } from '../../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
+import { masterService } from '../../lib/masterService';
+import type { MasterTypeProduction } from '../../types/supabase';
+
+// Helper to format currency
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount);
+};
+
+interface TypeProductionFormValues {
+    nama_type: string;
+    cost: number;
+}
+
+export default function MasterTypeProductionPage() {
+    const { mode } = useColorMode();
+    const { t } = useTranslation();
+
+    // Data lists
+    const [data, setData] = useState<MasterTypeProduction[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+
+    // Modal state
+    const [open, setOpen] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<MasterTypeProduction | null>(null);
+
+    // Delete confirmation state
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<MasterTypeProduction | null>(null);
+
+    // Form settings
+    const { control, handleSubmit, reset, formState: { errors } } = useForm<TypeProductionFormValues>({
+        defaultValues: {
+            nama_type: '',
+            cost: 0
+        }
+    });
+
+    // Fetch data from database
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const res = await masterService.getTypeProductions();
+            setData(res);
+        } catch (err: any) {
+            console.error('Error fetching type production data:', err);
+            setError(err.message || 'Gagal memuat data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    // Handlers
+    const handleOpenCreate = () => {
+        setSelectedItem(null);
+        reset({
+            nama_type: '',
+            cost: 0
+        });
+        setOpen(true);
+    };
+
+    const handleOpenEdit = (item: MasterTypeProduction) => {
+        setSelectedItem(item);
+        reset({
+            nama_type: item.nama_type,
+            cost: Number(item.cost) || 0
+        });
+        setOpen(true);
+    };
+
+    const handleClose = () => {
+        setOpen(false);
+        setSelectedItem(null);
+    };
+
+    const onSubmit = async (formValues: TypeProductionFormValues) => {
+        try {
+            setSaving(true);
+            setError(null);
+
+            const payload = {
+                nama_type: formValues.nama_type,
+                cost: Number(formValues.cost) || 0
+            };
+
+            if (selectedItem) {
+                // Update
+                await masterService.updateTypeProduction(selectedItem.id, payload);
+            } else {
+                // Create
+                await masterService.createTypeProduction(payload);
+            }
+
+            setOpen(false);
+            fetchData();
+        } catch (err: any) {
+            console.error('Error saving type production:', err);
+            setError(err.message || 'Gagal menyimpan data');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Delete confirmation
+    const handleOpenDelete = (item: MasterTypeProduction) => {
+        setItemToDelete(item);
+        setDeleteOpen(true);
+    };
+
+    const handleCloseDelete = () => {
+        setDeleteOpen(false);
+        setItemToDelete(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+        try {
+            setSaving(true);
+            setError(null);
+            await masterService.deleteTypeProduction(itemToDelete.id);
+            setDeleteOpen(false);
+            setItemToDelete(null);
+            fetchData();
+        } catch (err: any) {
+            console.error('Error deleting configuration:', err);
+            setError(err.message || 'Gagal menghapus data');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // AG-Grid columns configuration
+    const colDefs = useMemo<ColDef<MasterTypeProduction>[]>(() => [
+        {
+            field: 'nama_type',
+            headerName: t('type_production.name'),
+            flex: 2,
+            filter: 'agTextColumnFilter',
+            sortable: true
+        },
+        {
+            field: 'cost',
+            headerName: t('type_production.cost'),
+            flex: 1.5,
+            valueFormatter: (params) => params.value !== undefined ? formatCurrency(Number(params.value)) : '-',
+            filter: 'agNumberColumnFilter',
+            sortable: true
+        },
+        {
+            headerName: t('users.action'),
+            cellRenderer: (params: any) => {
+                return (
+                    <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center' }}>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            size="small"
+                            startIcon={<EditIcon />}
+                            onClick={() => handleOpenEdit(params.data)}
+                            sx={{
+                                textTransform: 'none',
+                                borderRadius: '20px',
+                                py: 0.25
+                            }}
+                        >
+                            {t('common.edit')}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => handleOpenDelete(params.data)}
+                            sx={{
+                                textTransform: 'none',
+                                borderRadius: '20px',
+                                py: 0.25
+                            }}
+                        >
+                            {t('common.delete')}
+                        </Button>
+                    </Stack>
+                );
+            },
+            width: 220,
+            sortable: false,
+            filter: false
+        }
+    ], [t]);
+
+    return (
+        <Container maxWidth="xl">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #7C4DFF 30%, #00E5FF 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    {t('type_production.title')}
+                </Typography>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<AddIcon />}
+                    onClick={handleOpenCreate}
+                    sx={{
+                        background: 'linear-gradient(45deg, #7C4DFF 30%, #00E5FF 90%)',
+                        borderRadius: '20px',
+                        textTransform: 'none',
+                        boxShadow: '0 3px 5px 2px rgba(124, 77, 255, .3)',
+                        px: 3
+                    }}
+                >
+                    {t('common.add_new')}
+                </Button>
+            </Box>
+
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+            <Box
+                sx={{
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    background: mode === 'dark'
+                        ? 'rgba(0, 0, 0, 0.4)'
+                        : 'rgba(255, 255, 255, 0.8)',
+                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                    overflow: 'hidden',
+                    p: 2,
+                    '& .ag-root-wrapper': {
+                        border: 'none',
+                        background: 'transparent',
+                    },
+                    '& .ag-header': {
+                        background: mode === 'dark'
+                            ? 'rgba(0, 0, 0, 0.6) !important'
+                            : 'rgba(240, 247, 255, 0.8) !important',
+                        borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
+                    },
+                    '& .ag-header-cell-text': {
+                        color: mode === 'dark' ? '#fff' : '#1e293b',
+                        fontWeight: 'bold',
+                    },
+                    '& .ag-row': {
+                        background: 'transparent',
+                        borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+                        '&:hover': {
+                            background: mode === 'dark'
+                                    ? 'rgba(255, 255, 255, 0.05) !important'
+                                    : 'rgba(0, 0, 0, 0.02) !important',
+                        }
+                    },
+                    '& .ag-cell': {
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: mode === 'dark' ? '#cbd5e1' : '#334155',
+                    }
+                }}
+            >
+                <div className={mode === 'dark' ? 'ag-theme-material' : 'ag-theme-material'} style={{ height: '550px', width: '100%' }}>
+                    <AgGridReact
+                        rowData={data}
+                        columnDefs={colDefs}
+                        pagination={true}
+                        paginationPageSize={10}
+                        paginationPageSizeSelector={[10, 20, 50]}
+                        domLayout="normal"
+                        loading={loading}
+                        theme="legacy"
+                    />
+                </div>
+            </Box>
+
+            {/* Create/Edit Dialog */}
+            <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+                <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+                    <DialogTitle sx={{ fontWeight: 'bold' }}>
+                        {selectedItem ? t('type_production.edit_title') : t('type_production.add_new')}
+                    </DialogTitle>
+                    <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+                        
+                        {/* Nama Tipe */}
+                        <Controller
+                            name="nama_type"
+                            control={control}
+                            rules={{ required: t('type_production.required_name') }}
+                            render={({ field }) => (
+                                <TextField
+                                    {...field}
+                                    label={t('type_production.name')}
+                                    placeholder={t('type_production.name_placeholder')}
+                                    fullWidth
+                                    error={!!errors.nama_type}
+                                    helperText={errors.nama_type?.message}
+                                    required
+                                />
+                            )}
+                        />
+
+                        {/* Biaya */}
+                        <Controller
+                            name="cost"
+                            control={control}
+                            rules={{ required: t('type_production.required_cost') }}
+                            render={({ field }) => (
+                                <TextField
+                                    {...field}
+                                    type="number"
+                                    label={t('type_production.cost')}
+                                    placeholder={t('type_production.cost_placeholder')}
+                                    fullWidth
+                                    error={!!errors.cost}
+                                    helperText={errors.cost?.message}
+                                    required
+                                    slotProps={{
+                                        htmlInput: { min: 0, step: "any" }
+                                    }}
+                                />
+                            )}
+                        />
+
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2 }}>
+                        <Button onClick={handleClose} variant="outlined" disabled={saving}>{t('common.cancel')}</Button>
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={saving}
+                            sx={{
+                                background: 'linear-gradient(45deg, #7C4DFF 30%, #00E5FF 90%)',
+                                borderRadius: '8px'
+                            }}
+                        >
+                            {saving ? t('common.loading') : t('common.save')}
+                        </Button>
+                    </DialogActions>
+                </Box>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteOpen} onClose={handleCloseDelete} PaperProps={{ sx: { borderRadius: '16px' } }}>
+                <DialogTitle sx={{ fontWeight: 'bold' }}>{t('common.delete')}</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Apakah Anda yakin ingin menghapus tipe produksi <strong>{itemToDelete?.nama_type}</strong>?
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={handleCloseDelete} variant="outlined" disabled={saving}>{t('common.cancel')}</Button>
+                    <Button onClick={confirmDelete} color="error" variant="contained" disabled={saving} sx={{ borderRadius: '8px' }}>
+                        {saving ? t('common.loading') : t('common.delete')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Container>
+    );
+}

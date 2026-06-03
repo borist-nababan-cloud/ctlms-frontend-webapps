@@ -188,7 +188,7 @@ const TallyInput = () => {
     return (
         <Container maxWidth="sm" sx={{ py: 2 }}>
             <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>
-                Tally / Input
+                Input Masuk Barang
             </Typography>
 
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

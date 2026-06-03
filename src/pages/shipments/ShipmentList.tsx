@@ -7,7 +7,9 @@ import {
     Alert,
     Chip,
     Dialog,
-    DialogContent
+    DialogContent,
+    Tabs,
+    Tab
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 import {
@@ -29,6 +31,7 @@ const ShipmentList = () => {
     const [error, setError] = useState<string | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [currentTab, setCurrentTab] = useState<'active' | 'completed'>('active');
 
 
 
@@ -48,59 +51,74 @@ const ShipmentList = () => {
         fetchShipments();
     }, []);
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'planned': return 'default'; // gray
-            case 'loading': return 'info';
-            case 'sailing': return 'primary'; // blue
-            case 'discharging': return 'warning'; // orange
-            case 'completed': return 'success'; // green
-            default: return 'default';
-        }
-    };
-
     const columns = useMemo<MRT_ColumnDef<ShipmentDetailed>[]>(() => [
         {
             accessorKey: 'reference_no',
-            header: 'Reference No',
+            header: 'No Referensi',
             size: 150,
+        },
+        {
+            accessorKey: 'company_name',
+            header: 'Perusahaan',
+            size: 180,
+            Cell: ({ cell }) => cell.getValue<string>() || '-',
         },
         {
             accessorKey: 'supplier_name',
             header: 'Supplier',
-            size: 200,
+            size: 180,
         },
         {
             accessorKey: 'vessel_name',
             header: 'Vessel',
-            size: 200,
+            size: 150,
         },
         {
             accessorKey: 'sku_code',
-            header: 'Product (SKU)',
+            header: 'Produk (SKU)',
             size: 120,
         },
         {
             accessorKey: 'draft_survey_qty',
             header: 'Qty (Kg)',
             size: 120,
-            Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>()),
+            Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
         },
         {
-            accessorKey: 'status',
+            accessorKey: 'total_bayar',
+            header: 'Total Bayar',
+            size: 150,
+            Cell: ({ row }) => {
+                const qty = Number(row.original.draft_survey_qty) || 0;
+                const price = Number(row.original.harga) || 0;
+                const ppn = Number(row.original.ppn_tax) || 0;
+                const pph = Number(row.original.pph_tax) || 0;
+                const disc = Number(row.original.disc) || 0;
+                const total = (qty * price) + ppn + pph - disc;
+                return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(total);
+            },
+        },
+        {
+            accessorKey: 'is_completed',
             header: 'Status',
             size: 130,
             Cell: ({ cell }) => {
-                const status = cell.getValue<string>();
+                const isCompleted = cell.getValue<boolean>();
                 return (
                     <Chip
-                        label={status.toUpperCase()}
-                        color={getStatusColor(status) as any}
+                        label={isCompleted ? 'SELESAI' : 'AKTIF'}
+                        color={isCompleted ? 'success' : 'info'}
                         size="small"
                         sx={{ fontWeight: 'bold' }}
                     />
                 );
             },
+        },
+        {
+            accessorKey: 'issue_date',
+            header: 'Tanggal Invoice',
+            size: 130,
+            Cell: ({ cell }) => cell.getValue<string>() || '-',
         },
         {
             accessorKey: 'eta',
@@ -109,9 +127,19 @@ const ShipmentList = () => {
         },
     ], []);
 
+    const filteredShipments = useMemo(() => {
+        return shipments.filter(s => {
+            if (currentTab === 'active') {
+                return !s.is_completed;
+            } else {
+                return !!s.is_completed;
+            }
+        });
+    }, [shipments, currentTab]);
+
     const table = useMaterialReactTable({
         columns,
-        data: shipments,
+        data: filteredShipments,
         state: {
             isLoading: loading,
             showProgressBars: loading,
@@ -193,6 +221,18 @@ const ShipmentList = () => {
             </Box>
 
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs
+                    value={currentTab}
+                    onChange={(_, newValue) => setCurrentTab(newValue)}
+                    textColor="primary"
+                    indicatorColor="primary"
+                >
+                    <Tab label="Aktif" value="active" sx={{ fontWeight: 'bold', textTransform: 'none' }} />
+                    <Tab label="Selesai" value="completed" sx={{ fontWeight: 'bold', textTransform: 'none' }} />
+                </Tabs>
+            </Box>
 
             <MaterialReactTable table={table} />
 

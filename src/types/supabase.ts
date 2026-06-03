@@ -68,6 +68,23 @@ export interface MasterWarehouse {
     created_at?: string;
 }
 
+export interface MasterBlending {
+    id: string; // uuid
+    company_id?: string | null; // uuid
+    nama_blending: string;
+    cost: number;
+    created_at?: string;
+}
+
+export interface MasterTypeProduction {
+    id: string; // uuid
+    company_id?: string | null; // uuid
+    nama_type: string;
+    cost: number;
+    created_at?: string;
+}
+
+
 export interface Shipment {
     id: string; // uuid
     reference_no: string;
@@ -80,6 +97,15 @@ export interface Shipment {
     eta: string; // date
     created_at?: string;
     created_by?: string;
+    company_id?: string | null;
+    disc?: number;
+    harga?: number;
+    is_completed?: boolean;
+    issue_date?: string | null;
+    loading_date?: string | null;
+    pph_tax?: number;
+    ppn_tax?: number;
+    qty_loading?: number | null;
 }
 
 export interface ShipmentDetailed extends Shipment {
@@ -87,6 +113,7 @@ export interface ShipmentDetailed extends Shipment {
     product_name: string;
     sku_code: string;
     origin_jetty?: string; // from view alias
+    company_name?: string | null;
 }
 
 export interface TruckingLog {

@@ -22,7 +22,7 @@ export default function MainLayout() {
 
     const { profile } = useAuth();
     const { mode, toggleColorMode } = useColorMode();
-    const appName = import.meta.env.VITE_NAVBAR_TITLE || 'CoalLogix System';
+    const appName = import.meta.env.VITE_APP_NAME || 'CoalLogix System';
 
     const handleDrawerToggle = () => {
         if (isMobile) {

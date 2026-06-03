@@ -15,7 +15,9 @@ export const en = {
             settings: 'Settings',
             logout: 'Logout',
             companies: 'Companies',
-            user_management: 'User Management'
+            user_management: 'User Management',
+            blending: 'Master Blending',
+            type_production: 'Master Type Production'
         },
         common: {
             add_new: 'Add New',
@@ -69,6 +71,28 @@ export const en = {
             select_company: 'Select Company',
             select_warehouse: 'Select Warehouse',
             edit_title: 'Edit User',
+        },
+        blending: {
+            title: 'Master Blending',
+            add_new: 'Add New',
+            edit_title: 'Edit Blending',
+            name: 'Blending Name',
+            cost: 'Cost (IDR)',
+            name_placeholder: 'Enter blending name...',
+            cost_placeholder: 'Enter cost...',
+            required_name: 'Blending Name is required',
+            required_cost: 'Cost is required'
+        },
+        type_production: {
+            title: 'Master Type Production',
+            add_new: 'Add New',
+            edit_title: 'Edit Type Production',
+            name: 'Type Name',
+            cost: 'Cost (IDR)',
+            name_placeholder: 'Enter type name...',
+            cost_placeholder: 'Enter cost...',
+            required_name: 'Type Name is required',
+            required_cost: 'Cost is required'
         }
     }
 };

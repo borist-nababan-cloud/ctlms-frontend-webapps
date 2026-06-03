@@ -10,6 +10,8 @@ import Partners from './pages/master/Partners';
 import Products from './pages/master/Products';
 import MasterCompanies from './pages/admin/MasterCompanies';
 import UserManagement from './pages/admin/UserManagement';
+import MasterBlending from './pages/admin/MasterBlending';
+import MasterTypeProduction from './pages/admin/MasterTypeProduction';
 import ShipmentList from './pages/shipments/ShipmentList';
 import TallyInput from './pages/logistics/TallyInput';
 import Monitoring from './pages/logistics/Monitoring';
@@ -33,6 +35,8 @@ function App() {
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/master/companies" element={<MasterCompanies />} />
+                <Route path="/master/blending" element={<MasterBlending />} />
+                <Route path="/master/type-production" element={<MasterTypeProduction />} />
                 <Route path="/admin/users" element={<UserManagement />} />
                 <Route path="/master/partners" element={<Partners />} />
                 <Route path="/master/products" element={<Products />} />

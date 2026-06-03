@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     Box,
     Card,
@@ -10,20 +11,70 @@ import {
     ListItemText,
     ListItemSecondaryAction,
     Divider,
-    Avatar
+    Avatar,
+    Button,
+    TextField,
+    Alert,
+    Snackbar,
+    FormControlLabel,
+    Checkbox
 } from '@mui/material';
 import { useColorMode } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { DarkMode, LightMode, Person } from '@mui/icons-material';
+import { supabase } from '../lib/supabaseClient';
 
 const Settings = () => {
     const { mode, toggleColorMode } = useColorMode();
     const { profile } = useAuth();
 
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [successOpen, setSuccessOpen] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+
+    const handlePasswordChange = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setErrorMsg(null);
+
+        if (!newPassword || !confirmPassword) {
+            setErrorMsg('Semua kolom password wajib diisi');
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            setErrorMsg('Password minimal harus memiliki 6 karakter');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setErrorMsg('Password tidak cocok');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) {
+                setErrorMsg(error.message || 'Gagal mengubah password');
+            } else {
+                setNewPassword('');
+                setConfirmPassword('');
+                setSuccessOpen(true);
+            }
+        } catch (err: any) {
+            setErrorMsg(err.message || 'Gagal mengubah password');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <Container maxWidth="md">
-            <Typography variant="h4" sx={{ mb: 4 }}>
-                Settings
+            <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>
+                Pengaturan
             </Typography>
 
             {/* Appearance Section */}
@@ -90,6 +141,76 @@ const Settings = () => {
                     </List>
                 </CardContent>
             </Card>
+
+            {/* Ganti Password Section */}
+            <Card sx={{ mt: 3 }}>
+                <CardContent>
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                        Ganti Password
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Perbarui password akun Anda untuk menjaga keamanan akun.
+                    </Typography>
+
+                    {errorMsg && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                            {errorMsg}
+                        </Alert>
+                    )}
+
+                    <Box component="form" onSubmit={handlePasswordChange} sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: '400px' }}>
+                        <TextField
+                            label="Password Baru"
+                            type={showPassword ? 'text' : 'password'}
+                            variant="outlined"
+                            fullWidth
+                            size="small"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            disabled={submitting}
+                        />
+                        <TextField
+                            label="Konfirmasi Password Baru"
+                            type={showPassword ? 'text' : 'password'}
+                            variant="outlined"
+                            fullWidth
+                            size="small"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            disabled={submitting}
+                        />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={showPassword}
+                                    onChange={(e) => setShowPassword(e.target.checked)}
+                                    color="primary"
+                                />
+                            }
+                            label="Tampilkan Password"
+                        />
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={submitting}
+                            sx={{ alignSelf: 'flex-start', mt: 1, textTransform: 'none', borderRadius: '8px' }}
+                        >
+                            {submitting ? 'Menyimpan...' : 'Simpan Password'}
+                        </Button>
+                    </Box>
+                </CardContent>
+            </Card>
+
+            <Snackbar
+                open={successOpen}
+                autoHideDuration={4000}
+                onClose={() => setSuccessOpen(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setSuccessOpen(false)} severity="success" sx={{ width: '100%' }}>
+                    Password berhasil diubah
+                </Alert>
+            </Snackbar>
         </Container>
     );
 };

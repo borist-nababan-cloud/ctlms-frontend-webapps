@@ -13,7 +13,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ drawerWidth }) => {
     const { profile } = useAuth();
     const { mode, toggleColorMode } = useColorMode();
-    const appName = import.meta.env.VITE_NAVBAR_TITLE || 'NSM Dashboard';
+    const appName = import.meta.env.VITE_APP_NAME || 'NSM Dashboard';
 
     return (
         <AppBar

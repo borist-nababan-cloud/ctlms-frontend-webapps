@@ -9,13 +9,15 @@ export const id = {
             inventory: 'Inventaris',
             sales: 'Penjualan',
             logistics: 'Logistik',
-            tally_input: 'Input Tally',
+            tally_input: 'Input Masuk Barang',
             monitoring: 'Pemantauan',
             finance: 'Keuangan',
             settings: 'Pengaturan',
             logout: 'Keluar',
             companies: 'Perusahaan',
-            user_management: 'Manajemen Pengguna'
+            user_management: 'Manajemen Pengguna',
+            blending: 'Master Blending',
+            type_production: 'Master Tipe Produksi'
         },
         common: {
             add_new: 'Tambah Baru',
@@ -69,6 +71,28 @@ export const id = {
             select_company: 'Pilih Perusahaan',
             select_warehouse: 'Pilih Gudang',
             edit_title: 'Ubah Pengguna',
+        },
+        blending: {
+            title: 'Master Blending',
+            add_new: 'Tambah Baru',
+            edit_title: 'Ubah Blending',
+            name: 'Nama Blending',
+            cost: 'Biaya (IDR)',
+            name_placeholder: 'Masukkan nama...',
+            cost_placeholder: 'Masukkan biaya...',
+            required_name: 'Nama Blending wajib diisi',
+            required_cost: 'Biaya wajib diisi'
+        },
+        type_production: {
+            title: 'Master Tipe Produksi',
+            add_new: 'Tambah Baru',
+            edit_title: 'Ubah Tipe Produksi',
+            name: 'Nama Tipe',
+            cost: 'Biaya (IDR)',
+            name_placeholder: 'Masukkan nama...',
+            cost_placeholder: 'Masukkan biaya...',
+            required_name: 'Nama Tipe wajib diisi',
+            required_cost: 'Biaya wajib diisi'
         }
     }
 };

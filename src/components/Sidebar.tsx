@@ -51,6 +51,8 @@ const MENU_ITEMS: MenuItemInfo[] = [
         allowedRoles: [1, 2, 3, 4, 5, 6],
         children: [
             { key: 'sidebar.companies', path: '/master/companies', icon: <CompaniesIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.blending', path: '/master/blending', icon: <MasterDataIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.type_production', path: '/master/type-production', icon: <MasterDataIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
             { key: 'sidebar.partners', path: '/master/partners', icon: <PartnersIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
             { key: 'sidebar.products', path: '/master/products', icon: <ProductsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
         ]
@@ -85,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({});
 
     const userRole = profile?.user_role ? Number(profile.user_role) : 0;
-    const navTitle = import.meta.env.VITE_NAVBAR_TITLE || 'NSM';
+    const navTitle = import.meta.env.VITE_APP_NAME || 'NSM';
 
     const handleNavigate = (path: string) => {
         navigate(path);
