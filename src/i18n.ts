@@ -12,7 +12,11 @@ i18n
             en,
             id
         },
-        fallbackLng: 'en',
+        fallbackLng: 'id',
+        detection: {
+            order: ['localStorage'],
+            caches: ['localStorage']
+        },
         interpolation: {
             escapeValue: false // react already safes from xss
         }

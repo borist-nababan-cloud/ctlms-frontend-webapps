@@ -23,17 +23,14 @@ dist-ssr
 *.sln
 
 # Security & Sensitive Data
-docs/*
-!docs/DEPLOYMENT_COOLIFY.md
+docs/
+my-cred/
+database-docs/
 *.sql
 .env
 *.env
 .env.*
 *.md
 !README.md
-!docs/DEPLOYMENT_COOLIFY.md
-my-cred
-database-docs
-
 
 nul

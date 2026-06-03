@@ -8,6 +8,8 @@ import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
 import Partners from './pages/master/Partners';
 import Products from './pages/master/Products';
+import MasterCompanies from './pages/admin/MasterCompanies';
+import UserManagement from './pages/admin/UserManagement';
 import ShipmentList from './pages/shipments/ShipmentList';
 import TallyInput from './pages/logistics/TallyInput';
 import Monitoring from './pages/logistics/Monitoring';
@@ -30,6 +32,8 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/master/companies" element={<MasterCompanies />} />
+                <Route path="/admin/users" element={<UserManagement />} />
                 <Route path="/master/partners" element={<Partners />} />
                 <Route path="/master/products" element={<Products />} />
                 <Route path="/shipments" element={<ShipmentList />} />

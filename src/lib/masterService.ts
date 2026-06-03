@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import type { MasterPartner, MasterProduct } from '../types/supabase';
+import type { MasterPartner, MasterProduct, MasterCompany } from '../types/supabase';
 
 export const masterService = {
     // Partners
@@ -64,5 +64,37 @@ export const masterService = {
             .single();
         if (error) throw error;
         return data as MasterProduct;
+    },
+
+    // Companies
+    async getCompanies() {
+        const { data, error } = await supabase
+            .from('master_companies')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data as MasterCompany[];
+    },
+
+    async createCompany(company: Omit<MasterCompany, 'id' | 'created_at'>) {
+        const { data, error } = await supabase
+            .from('master_companies')
+            .insert(company as any)
+            .select()
+            .single();
+        if (error) throw error;
+        return data as MasterCompany;
+    },
+
+    async updateCompany(id: string, company: Partial<MasterCompany>) {
+        const { data, error } = await supabase
+            .from('master_companies')
+            // @ts-ignore
+            .update(company as any)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data as MasterCompany;
     }
 };

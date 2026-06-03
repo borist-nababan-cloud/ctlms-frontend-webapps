@@ -25,7 +25,9 @@ import {
     Category as ProductsIcon,
     ExitToApp as LogoutIcon,
     Input as InputIcon,
-    Monitor as MonitorIcon
+    Monitor as MonitorIcon,
+    Business as CompaniesIcon,
+    AdminPanelSettings as AdminIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -42,12 +44,13 @@ interface MenuItemInfo {
 }
 
 const MENU_ITEMS: MenuItemInfo[] = [
-    { key: 'sidebar.dashboard', path: '/', icon: <DashboardIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7] },
+    { key: 'sidebar.dashboard', path: '/', icon: <DashboardIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7, 8] },
     {
         key: 'sidebar.master_data',
         icon: <MasterDataIcon />,
         allowedRoles: [1, 2, 3, 4, 5, 6],
         children: [
+            { key: 'sidebar.companies', path: '/master/companies', icon: <CompaniesIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
             { key: 'sidebar.partners', path: '/master/partners', icon: <PartnersIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
             { key: 'sidebar.products', path: '/master/products', icon: <ProductsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
         ]
@@ -65,7 +68,8 @@ const MENU_ITEMS: MenuItemInfo[] = [
         ]
     },
     { key: 'sidebar.finance', path: '/finance', icon: <FinanceIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-    { key: 'sidebar.settings', path: '/settings', icon: <SettingsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7] },
+    { key: 'sidebar.user_management', path: '/admin/users', icon: <AdminIcon />, allowedRoles: [8] },
+    { key: 'sidebar.settings', path: '/settings', icon: <SettingsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7, 8] },
 ];
 
 

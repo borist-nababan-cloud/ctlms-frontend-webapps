@@ -9,6 +9,7 @@ export interface UserProfile {
     email: string;
     user_role: number | null; // bigint
     wh_id: string | null; // uuid
+    company_id: string | null; // uuid
     real_name: string | null;
     created_at?: string;
     updated_at?: string;
@@ -41,6 +42,29 @@ export interface MasterProduct {
     name: string;
     type: 'INTERNAL_RAW' | 'PUBLISHED_FINISHED';
     current_price: number;
+    created_at?: string;
+}
+
+export interface MasterCompany {
+    id: string; // uuid
+    name: string;
+    address1?: string | null;
+    address2?: string | null;
+    city?: string | null;
+    province?: string | null;
+    zipcode?: string | null;
+    pic_name?: string | null;
+    fixline?: string | null;
+    mobile?: string | null;
+    email?: string | null;
+    logo_url?: string | null;
+    created_at?: string;
+}
+
+export interface MasterWarehouse {
+    id: string; // uuid
+    warehouse_name: string;
+    company_id?: string | null;
     created_at?: string;
 }
 
@@ -118,6 +142,11 @@ export interface Database {
                 Row: MasterProduct;
                 Insert: Omit<MasterProduct, 'id' | 'created_at'>;
                 Update: Partial<MasterProduct>;
+            };
+            master_companies: {
+                Row: MasterCompany;
+                Insert: Omit<MasterCompany, 'id' | 'created_at'>;
+                Update: Partial<MasterCompany>;
             };
             shipments: {
                 Row: Shipment;

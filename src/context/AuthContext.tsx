@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import type { UserProfile } from '../types/supabase';
@@ -29,36 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
-
-    useEffect(() => {
-        // 1. Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchOrCreateProfile(session.user);
-            } else {
-                setLoading(false);
-            }
-        }).catch(() => {
-            setLoading(false);
-        });
-
-        // 2. Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                setLoading(true);
-                await fetchOrCreateProfile(session.user);
-            } else {
-                setProfile(null);
-                setLoading(false);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
+    const fetchingUuidRef = useRef<string | null>(null);
 
     const fetchOrCreateProfile = async (currentUser: User) => {
         // PERF: Prevent redundant fetching
@@ -67,29 +38,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
+        // Prevent concurrent fetching for the same user
+        if (fetchingUuidRef.current === currentUser.id) {
+            console.log('AuthContext: profile query already in progress for uuid:', currentUser.id);
+            return;
+        }
+        fetchingUuidRef.current = currentUser.id;
+
         setAuthError(null);
         console.log('AuthContext: fetchOrCreateProfile', currentUser.id);
 
         try {
             console.log('AuthContext: checking for existing profile...');
 
-            // Create the query promise
-            const queryPromise = supabase
+            console.log('AuthContext: starting supabase query for profile with uuid:', currentUser.id);
+            const { data, error } = await supabase
                 .from('user_profiles')
                 .select('*')
                 .eq('uuid', currentUser.id)
                 .maybeSingle();
-
-            // Create a timeout promise (10 seconds)
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT_CHECKING_PROFILE')), 10000)
-            );
-
-            // Race them
-            const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+            console.log('AuthContext: supabase query completed', { data, error });
 
             if (error) {
-                console.error('AuthContext: Profile Check Error', error);
+                console.error('AuthContext: Profile Check Error', error.message, error);
                 // Don't block the app on profile error, but show a message
                 setAuthError(`Profile Error: ${error.message}`);
                 // Proceed without profile? Or retry?
@@ -118,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     .insert(newProfile as any);
 
                 if (insertError) {
-                    console.error('Error creating profile:', insertError);
+                    console.error('Error creating profile:', insertError.message, insertError);
                     setAuthError('PROFILE_CREATION_FAILED');
                 } else {
                     await supabase.auth.signOut();
@@ -126,21 +97,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 }
             }
         } catch (err: any) {
-            console.error('Error in profile logic:', err);
+            console.error('Error in profile logic:', err?.message || err, err?.stack);
             // Specifically handle timeout to inform user but unblock UI
-            if (err.message === 'TIMEOUT_CHECKING_PROFILE') {
+            if (err?.message === 'TIMEOUT_CHECKING_PROFILE') {
                 console.warn('Profile fetch timed out. Proceeding with limited access.');
                 setAuthError('Connection timed out. Some features may be limited.');
             }
         } finally {
+            fetchingUuidRef.current = null;
             // CRITICAL: Always turn off loading so the app can render
             setLoading(false);
         }
     };
 
+    useEffect(() => {
+        // 1. Get initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+            if (session?.user) {
+                setTimeout(() => {
+                    fetchOrCreateProfile(session.user!);
+                }, 0);
+            } else {
+                setLoading(false);
+            }
+        }).catch((err) => {
+            console.error('AuthContext: getSession error', err);
+            setLoading(false);
+        });
+
+        // 2. Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log('AuthContext: onAuthStateChange event:', event, session?.user?.id);
+            setSession(session);
+            setUser(session?.user ?? null);
+            if (session?.user) {
+                setLoading(true);
+                setTimeout(() => {
+                    fetchOrCreateProfile(session.user!);
+                }, 0);
+            } else {
+                setProfile(null);
+                setLoading(false);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
     const signOut = async () => {
         await supabase.auth.signOut();
     };
+
+    useEffect(() => {
+        (window as any).authContext = { session, user, profile, loading, authError };
+    }, [session, user, profile, loading, authError]);
 
     return (
         <AuthContext.Provider value={{ session, user, profile, loading, authError, signOut }}>
