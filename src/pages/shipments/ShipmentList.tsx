@@ -9,7 +9,8 @@ import {
     Dialog,
     DialogContent,
     Tabs,
-    Tab
+    Tab,
+    Snackbar
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 import {
@@ -22,6 +23,7 @@ import { shipmentService } from '../../lib/shipmentService';
 import type { ShipmentDetailed } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
 import ShipmentForm from './ShipmentForm';
+import { userService } from '../../lib/userService';
 
 const ShipmentList = () => {
     const { mode } = useColorMode();
@@ -32,8 +34,24 @@ const ShipmentList = () => {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [currentTab, setCurrentTab] = useState<'active' | 'completed'>('active');
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [users, setUsers] = useState<Record<string, { name: string; email: string }>>({});
 
-
+    const fetchUsers = async () => {
+        try {
+            const userData = await userService.getUsers();
+            const userMap: Record<string, { name: string; email: string }> = {};
+            userData.forEach(u => {
+                userMap[u.uuid] = {
+                    name: u.real_name || '',
+                    email: u.email || ''
+                };
+            });
+            setUsers(userMap);
+        } catch (err) {
+            console.error('Error fetching users for mapping:', err);
+        }
+    };
 
     const fetchShipments = async () => {
         try {
@@ -49,12 +67,13 @@ const ShipmentList = () => {
 
     useEffect(() => {
         fetchShipments();
+        fetchUsers();
     }, []);
 
     const columns = useMemo<MRT_ColumnDef<ShipmentDetailed>[]>(() => [
         {
-            accessorKey: 'reference_no',
-            header: 'No Referensi',
+            accessorKey: 'invoice_no',
+            header: 'No. Invoice',
             size: 150,
         },
         {
@@ -74,13 +93,25 @@ const ShipmentList = () => {
             size: 150,
         },
         {
+            accessorKey: 'asal_batu',
+            header: 'Asal Batu',
+            size: 150,
+            Cell: ({ cell }) => cell.getValue<string>() || '-',
+        },
+        {
             accessorKey: 'sku_code',
             header: 'Produk (SKU)',
             size: 120,
         },
         {
-            accessorKey: 'draft_survey_qty',
-            header: 'Qty (Kg)',
+            accessorKey: 'jenis_batu',
+            header: 'Jenis Batu',
+            size: 120,
+            Cell: ({ cell }) => cell.getValue<string>() || '-',
+        },
+        {
+            accessorKey: 'quantity',
+            header: 'Quantity',
             size: 120,
             Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
         },
@@ -89,7 +120,7 @@ const ShipmentList = () => {
             header: 'Total Bayar',
             size: 150,
             Cell: ({ row }) => {
-                const qty = Number(row.original.draft_survey_qty) || 0;
+                const qty = Number(row.original.quantity) || 0;
                 const price = Number(row.original.harga) || 0;
                 const ppn = Number(row.original.ppn_tax) || 0;
                 const pph = Number(row.original.pph_tax) || 0;
@@ -106,7 +137,7 @@ const ShipmentList = () => {
                 const isCompleted = cell.getValue<boolean>();
                 return (
                     <Chip
-                        label={isCompleted ? 'SELESAI' : 'AKTIF'}
+                        label={isCompleted ? 'Selesai' : 'Aktif'}
                         color={isCompleted ? 'success' : 'info'}
                         size="small"
                         sx={{ fontWeight: 'bold' }}
@@ -125,7 +156,41 @@ const ShipmentList = () => {
             header: 'ETA',
             size: 120,
         },
-    ], []);
+        {
+            accessorKey: 'created_by',
+            header: 'Dibuat Oleh',
+            size: 150,
+            Cell: ({ cell }) => {
+                const uuid = cell.getValue<string>();
+                if (!uuid) return '-';
+                const userInfo = users[uuid];
+                if (userInfo) {
+                    return userInfo.name || userInfo.email || uuid;
+                }
+                return uuid;
+            }
+        },
+        {
+            accessorKey: 'created_at',
+            header: 'Dibuat Pada',
+            size: 180,
+            Cell: ({ cell }) => {
+                const dateStr = cell.getValue<string>();
+                if (!dateStr) return '-';
+                try {
+                    return new Date(dateStr).toLocaleString('id-ID', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                } catch {
+                    return dateStr;
+                }
+            }
+        }
+    ], [users]);
 
     const filteredShipments = useMemo(() => {
         return shipments.filter(s => {
@@ -251,14 +316,23 @@ const ShipmentList = () => {
                 <DialogContent sx={{ p: 0 }}>
                     <ShipmentForm
                         shipmentId={selectedId}
-                        onSuccess={() => {
+                        onSuccess={(msg) => {
                             setModalOpen(false);
                             fetchShipments();
+                            if (msg) setSuccessMsg(msg);
                         }}
                         onClose={() => setModalOpen(false)}
                     />
                 </DialogContent>
             </Dialog>
+
+            <Snackbar
+                open={!!successMsg}
+                autoHideDuration={3000}
+                onClose={() => setSuccessMsg(null)}
+                message={successMsg}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            />
         </Container>
     );
 };

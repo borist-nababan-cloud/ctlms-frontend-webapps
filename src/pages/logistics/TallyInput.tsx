@@ -65,7 +65,7 @@ const TallyInput = () => {
             // Filter: only discharging or sailing
             const active = data.filter(s => ['discharging', 'sailing'].includes(s.status));
             setActiveShipments(active);
-        } catch (err: any) {
+        } catch {
             setError('Failed to load active shipments');
         } finally {
             setLoading(false);
@@ -213,7 +213,7 @@ const TallyInput = () => {
                                     >
                                         {activeShipments.map(s => (
                                             <MenuItem key={s.id} value={s.id}>
-                                                {s.vessel_name} ({s.reference_no})
+                                                {s.vessel_name} ({s.invoice_no})
                                             </MenuItem>
                                         ))}
                                     </TextField>

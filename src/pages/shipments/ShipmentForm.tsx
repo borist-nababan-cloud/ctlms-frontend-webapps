@@ -16,15 +16,20 @@ import { shipmentService } from '../../lib/shipmentService';
 import { masterService } from '../../lib/masterService';
 import type { Shipment, MasterPartner, MasterProduct } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
+import { supabase } from '../../lib/supabaseClient';
 
 // Helper to format currency/numbers with thousands separators
 const formatNumberStr = (value: number) => {
     return new Intl.NumberFormat('id-ID').format(value);
 };
 
+interface ShipmentFormValues extends Omit<Partial<Shipment>, 'jenis_batu'> {
+    jenis_batu: 'High' | 'Medium' | 'Low' | '';
+}
+
 interface ShipmentFormProps {
     shipmentId: string | null;
-    onSuccess: () => void;
+    onSuccess: (message?: string) => void;
     onClose: () => void;
 }
 
@@ -57,15 +62,15 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
     const isEditMode = Boolean(shipmentId);
     const isLocked = isEditMode && isOriginallyCompleted;
 
-    const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<Partial<Shipment>>({
+    const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<ShipmentFormValues>({
         defaultValues: {
-            reference_no: '',
+            invoice_no: '',
             supplier_id: '',
             product_id: '',
             vessel_name: '',
-            origin_location: '',
-            draft_survey_qty: 0,
-            status: 'planned',
+            asal_batu: '',
+            quantity: 0,
+            jenis_batu: '',
             eta: new Date().toISOString().split('T')[0],
             is_completed: false,
             harga: 0,
@@ -82,7 +87,7 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
     const isFormDisabled = isCompletedChecked || isLocked;
 
     // Watch values for dynamic calculation
-    const qty = watch('draft_survey_qty') || 0;
+    const qty = watch('quantity') || 0;
     const price = watch('harga') || 0;
     const subtotal = qty * price;
     const ppn = watch('ppn_tax') || 0;
@@ -98,18 +103,18 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                     masterService.getProducts()
                 ]);
                 setSuppliers(allPartners.filter(p => p.type === 'SUPPLIER'));
-                setProducts(allProducts);
+                setProducts(allProducts.filter(p => p.type === 'INTERNAL_RAW'));
 
                 if (isEditMode && shipmentId) {
                     const shipment = await shipmentService.getShipmentById(shipmentId);
                     if (shipment) {
-                        setValue('reference_no', shipment.reference_no || '');
+                        setValue('invoice_no', shipment.invoice_no || '');
                         setValue('supplier_id', shipment.supplier_id || '');
                         setValue('product_id', shipment.product_id || '');
                         setValue('vessel_name', shipment.vessel_name || '');
-                        setValue('origin_location', shipment.origin_location || '');
-                        setValue('draft_survey_qty', Number(shipment.draft_survey_qty) || 0);
-                        setValue('status', shipment.status || 'planned');
+                        setValue('asal_batu', shipment.asal_batu || '');
+                        setValue('quantity', Number(shipment.quantity) || 0);
+                        setValue('jenis_batu', shipment.jenis_batu || '');
                         setValue('eta', shipment.eta || '');
                         setValue('is_completed', shipment.is_completed || false);
                         setValue('harga', Number(shipment.harga) || 0);
@@ -129,7 +134,7 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
         loadMasterData();
     }, [shipmentId, isEditMode, setValue]);
 
-    const onSubmit = async (data: Partial<Shipment>) => {
+    const onSubmit = async (data: ShipmentFormValues) => {
         if (isLocked) {
             setError('Data ini sudah dikunci (Status Selesai) dan tidak dapat diubah.');
             return;
@@ -139,24 +144,66 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
         setError(null);
 
         // Sanitize data and apply defaults
-        const payload: Partial<Shipment> = {
+        const savePayload: Partial<Shipment> = {
             ...data,
             company_id: loggedInProfile?.company_id || null,
             ppn_tax: data.ppn_tax || 0,
             pph_tax: data.pph_tax || 0,
             disc: data.disc || 0,
             harga: data.harga || 0,
-            draft_survey_qty: data.draft_survey_qty || 0,
-            is_completed: data.is_completed || false
+            quantity: data.quantity || 0,
+            jenis_batu: data.jenis_batu === '' ? null : data.jenis_batu
         };
 
+        // Explicitly exclude status, is_completed, created_by, and created_at from initial save/update payload
+        delete savePayload.status;
+        delete savePayload.is_completed;
+        delete savePayload.created_by;
+        delete savePayload.created_at;
+
         try {
+            let successMessage = 'Pengiriman berhasil disimpan';
+            const shouldComplete = Boolean(data.is_completed);
+
             if (isEditMode && shipmentId) {
-                await shipmentService.updateShipment(shipmentId, payload);
+                // 1. Always update the shipment first without status or is_completed columns
+                await shipmentService.updateShipment(shipmentId, savePayload);
+
+                // 2. If completed checkbox is checked and it wasn't previously completed, trigger RPC
+                if (shouldComplete && !isOriginallyCompleted) {
+                    const { data: rpcData, error: rpcError } = await supabase.rpc('complete_shipment', {
+                        p_shipment_id: shipmentId
+                    });
+
+                    if (rpcError) {
+                        throw new Error(rpcError.message);
+                    }
+                    if (rpcData && rpcData.success === false) {
+                        throw new Error(rpcData.message);
+                    }
+                    successMessage = 'Stok berhasil ditambahkan';
+                }
             } else {
-                await shipmentService.createShipment(payload);
+                // 1. Create a new shipment first without status or is_completed columns
+                const newShipment = await shipmentService.createShipment(savePayload);
+
+                // 2. If completed checkbox is checked, trigger RPC
+                if (shouldComplete) {
+                    const { data: rpcData, error: rpcError } = await supabase.rpc('complete_shipment', {
+                        p_shipment_id: newShipment.id
+                    });
+
+                    if (rpcError) {
+                        throw new Error(rpcError.message);
+                    }
+                    if (rpcData && rpcData.success === false) {
+                        throw new Error(rpcData.message);
+                    }
+                    successMessage = 'Stok berhasil ditambahkan';
+                }
             }
-            onSuccess();
+
+            onSuccess(successMessage);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -236,17 +283,17 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                     
                     <Grid size={{ xs: 12, md: 4 }}>
                         <Controller
-                            name="reference_no"
+                            name="invoice_no"
                             control={control}
-                            rules={{ required: 'Reference No wajib diisi' }}
+                            rules={{ required: 'No. Invoice wajib diisi' }}
                             render={({ field }) => (
                                 <TextField
                                     {...field}
-                                    label="Reference No"
+                                    label="No. Invoice"
                                     fullWidth
                                     disabled={isFormDisabled}
-                                    error={!!errors.reference_no}
-                                    helperText={errors.reference_no?.message}
+                                    error={!!errors.invoice_no}
+                                    helperText={errors.invoice_no?.message}
                                 />
                             )}
                         />
@@ -302,12 +349,12 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
 
                     <Grid size={{ xs: 12, md: 4 }}>
                         <Controller
-                            name="origin_location"
+                            name="asal_batu"
                             control={control}
                             render={({ field }) => (
                                 <TextField
                                     {...field}
-                                    label="Origin Jetty"
+                                    label="Asal Batu"
                                     fullWidth
                                     disabled={isFormDisabled}
                                 />
@@ -340,6 +387,29 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                                             </Box>
                                         </MenuItem>
                                     ))}
+                                </TextField>
+                            )}
+                        />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <Controller
+                            name="jenis_batu"
+                            control={control}
+                            rules={{ required: 'Jenis Batu wajib dipilih' }}
+                            render={({ field }) => (
+                                <TextField
+                                    {...field}
+                                    select
+                                    label="Jenis Batu"
+                                    fullWidth
+                                    disabled={isFormDisabled}
+                                    error={!!errors.jenis_batu}
+                                    helperText={errors.jenis_batu?.message}
+                                >
+                                    <MenuItem value="High">High</MenuItem>
+                                    <MenuItem value="Medium">Medium</MenuItem>
+                                    <MenuItem value="Low">Low</MenuItem>
                                 </TextField>
                             )}
                         />
@@ -397,7 +467,7 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 4 }}>
-                        {renderNumericField('draft_survey_qty', 'Draft Survey Qty (Kg)', 'Masukkan quantity...', true)}
+                        {renderNumericField('quantity', 'Quantity (Kg)', 'Masukkan quantity...', true)}
                     </Grid>
 
                     {/* Section 2: Keuangan */}
@@ -448,27 +518,7 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                         </Typography>
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Controller
-                            name="status"
-                            control={control}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    select
-                                    label="Status Inbound"
-                                    fullWidth
-                                    disabled={isFormDisabled}
-                                >
-                                    <MenuItem value="planned">Planned</MenuItem>
-                                    <MenuItem value="loading">Loading</MenuItem>
-                                    <MenuItem value="sailing">Sailing</MenuItem>
-                                    <MenuItem value="discharging">Discharging</MenuItem>
-                                    <MenuItem value="completed">Completed</MenuItem>
-                                </TextField>
-                            )}
-                        />
-                    </Grid>
+
 
                     <Grid size={{ xs: 12, md: 4 }}>
                         <Controller
@@ -504,7 +554,7 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                                             color="primary"
                                         />
                                     }
-                                    label="Status Selesai (Kunci Rekord)"
+                                    label="Status Selesai (Kunci Record)"
                                 />
                             )}
                         />

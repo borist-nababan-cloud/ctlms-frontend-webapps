@@ -9,7 +9,7 @@ async function run() {
         const query = `
             CREATE OR REPLACE VIEW public.view_shipments_detailed AS
             SELECT s.id,
-                s.reference_no,
+                s.invoice_no,
                 s.supplier_id,
                 mp.name,
                 mp.name AS supplier_name,
@@ -17,8 +17,9 @@ async function run() {
                 prod.sku_code,
                 prod.name AS product_name,
                 s.vessel_name,
-                s.origin_location AS origin_jetty,
-                s.draft_survey_qty,
+                s.asal_batu,
+                s.quantity,
+                s.jenis_batu,
                 s.status,
                 s.eta,
                 s.created_at,

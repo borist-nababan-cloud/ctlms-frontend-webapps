@@ -87,12 +87,13 @@ export interface MasterTypeProduction {
 
 export interface Shipment {
     id: string; // uuid
-    reference_no: string;
+    invoice_no: string;
     supplier_id: string; // foreign key to master_partners
     product_id: string; // foreign key to master_products
     vessel_name: string;
-    origin_location: string;
-    draft_survey_qty: number;
+    asal_batu: string;
+    quantity: number;
+    jenis_batu?: 'High' | 'Medium' | 'Low' | null;
     status: 'planned' | 'loading' | 'sailing' | 'discharging' | 'completed';
     eta: string; // date
     created_at?: string;
@@ -112,7 +113,6 @@ export interface ShipmentDetailed extends Shipment {
     supplier_name: string;
     product_name: string;
     sku_code: string;
-    origin_jetty?: string; // from view alias
     company_name?: string | null;
 }
 

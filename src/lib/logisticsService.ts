@@ -52,7 +52,7 @@ export const logisticsService = {
             .select(`
                 *,
                 shipments (
-                    reference_no,
+                    invoice_no,
                     vessel_name
                 )
             `)
