@@ -27,6 +27,7 @@ const Products = () => {
     const [products, setProducts] = useState<MasterProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [dialogError, setDialogError] = useState<string | null>(null);
 
     // Dialog State
     const [open, setOpen] = useState(false);
@@ -58,25 +59,26 @@ const Products = () => {
     const columns = useMemo<MRT_ColumnDef<MasterProduct>[]>(() => [
         {
             accessorKey: 'sku_code',
-            header: 'SKU Code',
+            header: 'Kode SKU',
             size: 100,
             enableClickToCopy: true,
         },
         {
             accessorKey: 'name',
-            header: 'Name',
+            header: 'Nama Produk',
             size: 200,
         },
         {
             accessorKey: 'type',
-            header: 'Type',
+            header: 'Tipe',
             size: 150,
             filterVariant: 'select',
             filterSelectOptions: ['INTERNAL_RAW', 'PUBLISHED_FINISHED'],
+            Cell: ({ cell }) => cell.getValue<string>() === 'INTERNAL_RAW' ? 'Bahan Baku Internal (Raw)' : 'Produk Jadi Publik (Finished)',
         },
         {
             accessorKey: 'current_price',
-            header: 'Price / Kg',
+            header: 'Harga / Kg',
             size: 150,
             Cell: ({ cell }) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(cell.getValue<number>()),
         },
@@ -86,28 +88,46 @@ const Products = () => {
     const handleOpen = () => {
         setEditingId(null);
         setFormData({ sku_code: '', name: '', type: 'INTERNAL_RAW', current_price: 0 });
+        setDialogError(null);
         setOpen(true);
     };
 
     const handleEdit = (product: MasterProduct) => {
         setEditingId(product.id);
         setFormData(product);
+        setDialogError(null);
         setOpen(true);
     };
 
     const handleClose = () => setOpen(false);
 
     const handleSubmit = async () => {
+        setDialogError(null);
+        const trimmedSku = formData.sku_code?.trim() || '';
+        const trimmedName = formData.name?.trim() || '';
+
+        if (!trimmedSku || !trimmedName) {
+            setDialogError('Kode SKU dan Nama Produk wajib diisi.');
+            return;
+        }
+
+        const payload = {
+            ...formData,
+            sku_code: trimmedSku,
+            name: trimmedName,
+        };
+
         try {
             if (editingId) {
-                await masterService.updateProduct(editingId, formData);
+                await masterService.updateProduct(editingId, payload);
             } else {
-                await masterService.createProduct(formData as any);
+                await masterService.createProduct(payload as any);
             }
             setOpen(false);
             fetchProducts();
         } catch (err: any) {
-            alert('Error saving: ' + err.message);
+            console.error('Error saving product:', err);
+            setDialogError('Terjadi kesalahan pada sistem saat menyimpan data.');
         }
     };
 
@@ -197,7 +217,7 @@ const Products = () => {
         <Container maxWidth="xl">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    Products
+                    Master Produk
                 </Typography>
                 <Button
                     variant="contained"
@@ -210,7 +230,7 @@ const Products = () => {
                         boxShadow: '0 3px 5px 2px rgba(255, 152, 0, .3)',
                     }}
                 >
-                    Add Product
+                    Tambah Produk
                 </Button>
             </Box>
 
@@ -220,33 +240,34 @@ const Products = () => {
 
             {/* Dialog */}
             <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
-                <DialogTitle>{editingId ? 'Edit Product' : 'New Product'}</DialogTitle>
+                <DialogTitle>{editingId ? 'Edit Produk' : 'Tambah Produk Baru'}</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        {dialogError && <Alert severity="error">{dialogError}</Alert>}
                         <TextField
-                            label="SKU Code"
+                            label="Kode SKU"
                             fullWidth
                             value={formData.sku_code}
                             onChange={(e) => setFormData({ ...formData, sku_code: e.target.value })}
                         />
                         <TextField
-                            label="Name"
+                            label="Nama Produk"
                             fullWidth
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         />
                         <TextField
                             select
-                            label="Type"
+                            label="Tipe"
                             fullWidth
                             value={formData.type}
                             onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                         >
-                            <MenuItem value="INTERNAL_RAW">INTERNAL_RAW</MenuItem>
-                            <MenuItem value="PUBLISHED_FINISHED">PUBLISHED_FINISHED</MenuItem>
+                            <MenuItem value="INTERNAL_RAW">Bahan Baku Internal (Raw)</MenuItem>
+                            <MenuItem value="PUBLISHED_FINISHED">Produk Jadi Publik (Finished)</MenuItem>
                         </TextField>
                         <TextField
-                            label="Price per Kg (IDR)"
+                            label="Harga per Kg (IDR)"
                             type="number"
                             fullWidth
                             value={formData.current_price}
@@ -255,8 +276,8 @@ const Products = () => {
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleClose}>Cancel</Button>
-                    <Button onClick={handleSubmit} variant="contained" sx={{ background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)' }}>Save</Button>
+                    <Button onClick={handleClose}>Batal</Button>
+                    <Button onClick={handleSubmit} variant="contained" sx={{ background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)' }}>Simpan</Button>
                 </DialogActions>
             </Dialog>
         </Container>

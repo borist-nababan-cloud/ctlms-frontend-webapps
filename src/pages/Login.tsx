@@ -36,15 +36,24 @@ const Login = () => {
         setLoading(true);
         setError(null);
 
+        const trimmedEmail = email.trim();
+        const trimmedPassword = password.trim();
+
+        if (!trimmedEmail || !trimmedPassword) {
+            setError('Surel dan kata sandi wajib diisi');
+            setLoading(false);
+            return;
+        }
+
         try {
             const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
+                email: trimmedEmail,
+                password: trimmedPassword,
             });
 
             if (error) {
                 console.error('Login: signIn error', error);
-                setError(error.message);
+                setError('Surel atau kata sandi salah, atau terjadi kesalahan pada sistem.');
                 setLoading(false);
             } else {
                 setLoading(false);
@@ -52,6 +61,7 @@ const Login = () => {
             }
         } catch (err) {
             console.error('Login: Unexpected exception', err);
+            setError('Terjadi kesalahan pada sistem');
             setLoading(false);
         }
     };
@@ -66,8 +76,8 @@ const Login = () => {
 
                     {authError === 'UNASSIGNED_ROLE' && (
                         <Alert severity="error" sx={{ mb: 2 }}>
-                            <AlertTitle>Access Denied</AlertTitle>
-                            You are Un-assigned, contact your Administrator
+                            <AlertTitle>Akses Ditolak</AlertTitle>
+                            Anda tidak ditugaskan, hubungi Administrator
                         </Alert>
                     )}
 

@@ -147,6 +147,53 @@ export interface InventoryCurrent {
     current_stock_kg: number;
 }
 
+export interface SalesOrder {
+    id: string; // uuid
+    created_at?: string;
+    order_no: string;
+    customer_id: string; // uuid -> master_partners
+    product_id: string; // uuid -> master_products
+    product_name?: string | null;
+    qty_ordered: number;
+    price_per_kg: number;
+    delivery_type?: 'DIRECT_BARGE' | 'STOCKPILE' | 'SCHEDULED' | null;
+    status: 'DRAFT' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+    delivery_date?: string | null;
+    notes?: string | null;
+    created_by?: string | null;
+    company_id?: string | null; // uuid -> master_companies
+    is_completed: boolean;
+}
+
+export interface SalesOrderDetailed extends SalesOrder {
+    customer_name?: string;
+    product_name?: string;
+    company_name?: string | null;
+    sku_code?: string;
+}
+
+export interface DeliveryOrder {
+    id: string; // uuid
+    created_at?: string;
+    sales_order_id: string; // uuid -> sales_orders
+    truck_plate: string | null;
+    ticket_number: string | null;
+    net_weight: number;
+    photo_url: string | null;
+    created_by?: string | null;
+    company_id?: string | null; // uuid -> master_companies
+    date_of_issue?: string;
+    gross_terima?: number;
+    gross_weight?: number;
+    net_terima?: number;
+    shipment_id?: string | null; // uuid -> shipments
+    sj_number?: string | null;
+    tare_terima?: number;
+    tare_weight?: number;
+    vessel_name?: string | null;
+    published_product_name?: string | null;
+}
+
 export interface Database {
     public: {
         Tables: {
@@ -189,6 +236,16 @@ export interface Database {
                 Row: InventoryLedger;
                 Insert: Omit<InventoryLedger, 'id' | 'created_at'>;
                 Update: Partial<InventoryLedger>;
+            };
+            sales_orders: {
+                Row: SalesOrder;
+                Insert: Omit<SalesOrder, 'id' | 'created_at'>;
+                Update: Partial<SalesOrder>;
+            };
+            delivery_orders: {
+                Row: DeliveryOrder;
+                Insert: Omit<DeliveryOrder, 'id' | 'created_at'>;
+                Update: Partial<DeliveryOrder>;
             };
         };
     };

@@ -59,6 +59,7 @@ const Partners = () => {
     const [partners, setPartners] = useState<MasterPartner[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [dialogError, setDialogError] = useState<string | null>(null);
 
     // Dialog State
     const [open, setOpen] = useState(false);
@@ -105,25 +106,32 @@ const Partners = () => {
     const columns = useMemo<MRT_ColumnDef<MasterPartner>[]>(() => [
         {
             accessorKey: 'name',
-            header: 'Name',
+            header: 'Nama Mitra',
             size: 200,
             enableClickToCopy: true,
         },
         {
             accessorKey: 'type',
-            header: 'Type',
+            header: 'Tipe',
             size: 120,
             filterVariant: 'select',
             filterSelectOptions: ['SUPPLIER', 'CUSTOMER', 'TRANSPORTER', 'OTHER'],
+            Cell: ({ cell }) => {
+                const val = cell.getValue<string>();
+                if (val === 'SUPPLIER') return 'Supplier';
+                if (val === 'CUSTOMER') return 'Customer';
+                if (val === 'TRANSPORTER') return 'Transporter';
+                return 'Lainnya';
+            }
         },
         {
             accessorKey: 'contact_person',
-            header: 'Contact Person',
+            header: 'Kontak Person (CP)',
             size: 150,
         },
         {
             accessorKey: 'phone',
-            header: 'Phone',
+            header: 'Telepon',
             size: 150,
         },
         {
@@ -149,7 +157,7 @@ const Partners = () => {
                         p: '0.25rem',
                     })}
                 >
-                    {cell.getValue<boolean>() ? 'ACTIVE' : 'INACTIVE'}
+                    {cell.getValue<boolean>() ? 'AKTIF' : 'TIDAK AKTIF'}
                 </Box>
             ),
         },
@@ -160,6 +168,7 @@ const Partners = () => {
         setEditingId(null);
         setFormData(initialFormState);
         setTabValue(0);
+        setDialogError(null);
         setOpen(true);
     };
 
@@ -167,6 +176,7 @@ const Partners = () => {
         setEditingId(partner.id);
         setFormData(partner);
         setTabValue(0);
+        setDialogError(null);
         setOpen(true);
     };
 
@@ -177,21 +187,55 @@ const Partners = () => {
     };
 
     const handleSubmit = async () => {
-        try {
-            if (!formData.name) {
-                alert("Name is required");
-                return;
-            }
+        setDialogError(null);
 
+        const trimmedName = formData.name?.trim() || '';
+        const trimmedTaxId = formData.tax_id?.trim() || '';
+        const trimmedAddress = formData.address?.trim() || '';
+        const trimmedCity = formData.city?.trim() || '';
+        const trimmedProvince = formData.province?.trim() || '';
+        const trimmedEmail = formData.email?.trim() || '';
+        const trimmedPhone = formData.phone?.trim() || '';
+        const trimmedContactPerson = formData.contact_person?.trim() || '';
+        const trimmedPhoneCp = formData.phone_cp?.trim() || '';
+        const trimmedWaCp = formData.wa_cp?.trim() || '';
+        const trimmedBankAcc = formData.bank_acc?.trim() || '';
+        const trimmedNoAcc = formData.no_acc?.trim() || '';
+        const trimmedNameAcc = formData.name_acc?.trim() || '';
+
+        if (!trimmedName) {
+            setDialogError("Nama Mitra wajib diisi.");
+            return;
+        }
+
+        const payload: Partial<MasterPartner> = {
+            ...formData,
+            name: trimmedName,
+            tax_id: trimmedTaxId,
+            address: trimmedAddress,
+            city: trimmedCity,
+            province: trimmedProvince,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+            contact_person: trimmedContactPerson,
+            phone_cp: trimmedPhoneCp,
+            wa_cp: trimmedWaCp,
+            bank_acc: trimmedBankAcc,
+            no_acc: trimmedNoAcc,
+            name_acc: trimmedNameAcc,
+        };
+
+        try {
             if (editingId) {
-                await masterService.updatePartner(editingId, formData);
+                await masterService.updatePartner(editingId, payload);
             } else {
-                await masterService.createPartner(formData as any);
+                await masterService.createPartner(payload as any);
             }
             setOpen(false);
             fetchPartners();
         } catch (err: any) {
-            alert('Error saving: ' + err.message);
+            console.error('Error saving partner:', err);
+            setDialogError('Terjadi kesalahan pada sistem saat menyimpan data.');
         }
     };
 
@@ -281,7 +325,7 @@ const Partners = () => {
         <Container maxWidth="xl">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    Partners
+                    Master Mitra
                 </Typography>
                 <Button
                     variant="contained"
@@ -294,7 +338,7 @@ const Partners = () => {
                         boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
                     }}
                 >
-                    {t('common.add_new')} {t('sidebar.partners')}
+                    Tambah Mitra Baru
                 </Button>
             </Box>
 
@@ -305,15 +349,16 @@ const Partners = () => {
 
             {/* Dialog */}
             <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
-                <DialogTitle>{editingId ? 'Edit Partner' : 'New Partner'}</DialogTitle>
+                <DialogTitle>{editingId ? 'Edit Mitra' : 'Tambah Mitra Baru'}</DialogTitle>
                 <DialogContent dividers>
                     <Box sx={{ width: '100%' }}>
+                        {dialogError && <Alert severity="error" sx={{ mb: 2 }}>{dialogError}</Alert>}
                         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                             <Tabs value={tabValue} onChange={handleTabChange} aria-label="partner tabs">
-                                <Tab label="General Info" />
-                                <Tab label="Contact Details" />
-                                <Tab label="Contact Person (CP)" />
-                                <Tab label="Bank Info" />
+                                <Tab label="Informasi Umum" />
+                                <Tab label="Detail Kontak" />
+                                <Tab label="Kontak Person (CP)" />
+                                <Tab label="Informasi Bank" />
                             </Tabs>
                         </Box>
 
@@ -321,7 +366,7 @@ const Partners = () => {
                         <CustomTabPanel value={tabValue} index={0}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <TextField
-                                    label="Name"
+                                    label="Nama Mitra"
                                     fullWidth
                                     required
                                     value={formData.name}
@@ -329,18 +374,18 @@ const Partners = () => {
                                 />
                                 <TextField
                                     select
-                                    label="Type"
+                                    label="Tipe"
                                     fullWidth
                                     value={formData.type}
                                     onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                                 >
-                                    <MenuItem value="SUPPLIER">SUPPLIER</MenuItem>
-                                    <MenuItem value="CUSTOMER">CUSTOMER</MenuItem>
-                                    <MenuItem value="TRANSPORTER">TRANSPORTER</MenuItem>
-                                    <MenuItem value="OTHER">OTHER</MenuItem>
+                                    <MenuItem value="SUPPLIER">Supplier</MenuItem>
+                                    <MenuItem value="CUSTOMER">Customer</MenuItem>
+                                    <MenuItem value="TRANSPORTER">Transporter</MenuItem>
+                                    <MenuItem value="OTHER">Lainnya</MenuItem>
                                 </TextField>
                                 <TextField
-                                    label="Tax ID (NPWP)"
+                                    label="NPWP (ID Pajak)"
                                     fullWidth
                                     value={formData.tax_id || ''}
                                     onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
@@ -352,7 +397,7 @@ const Partners = () => {
                                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                                         />
                                     }
-                                    label={formData.is_active !== false ? "Active" : "Inactive"}
+                                    label={formData.is_active !== false ? "Aktif" : "Tidak Aktif"}
                                 />
                             </Box>
                         </CustomTabPanel>
@@ -361,7 +406,7 @@ const Partners = () => {
                         <CustomTabPanel value={tabValue} index={1}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <TextField
-                                    label="Address"
+                                    label="Alamat"
                                     fullWidth
                                     multiline
                                     rows={3}
@@ -370,20 +415,20 @@ const Partners = () => {
                                 />
                                 <Box sx={{ display: 'flex', gap: 2 }}>
                                     <TextField
-                                        label="City"
+                                        label="Kota"
                                         fullWidth
                                         value={formData.city || ''}
                                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                                     />
                                     <TextField
-                                        label="Province"
+                                        label="Provinsi"
                                         fullWidth
                                         value={formData.province || ''}
                                         onChange={(e) => setFormData({ ...formData, province: e.target.value })}
                                     />
                                 </Box>
                                 <TextField
-                                    label="Office Phone"
+                                    label="Telepon Kantor"
                                     fullWidth
                                     value={formData.phone || ''}
                                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -402,13 +447,13 @@ const Partners = () => {
                         <CustomTabPanel value={tabValue} index={2}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <TextField
-                                    label="Contact Person Name"
+                                    label="Nama Kontak Person"
                                     fullWidth
                                     value={formData.contact_person || ''}
                                     onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
                                 />
                                 <TextField
-                                    label="Mobile/Phone (CP)"
+                                    label="No. HP (CP)"
                                     fullWidth
                                     value={formData.phone_cp || ''}
                                     onChange={(e) => setFormData({ ...formData, phone_cp: e.target.value })}
@@ -426,19 +471,19 @@ const Partners = () => {
                         <CustomTabPanel value={tabValue} index={3}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <TextField
-                                    label="Bank Name"
+                                    label="Nama Bank"
                                     fullWidth
                                     value={formData.bank_acc || ''}
                                     onChange={(e) => setFormData({ ...formData, bank_acc: e.target.value })}
                                 />
                                 <TextField
-                                    label="Account Number"
+                                    label="No. Rekening"
                                     fullWidth
                                     value={formData.no_acc || ''}
                                     onChange={(e) => setFormData({ ...formData, no_acc: e.target.value })}
                                 />
                                 <TextField
-                                    label="Account Holder Name"
+                                    label="Nama Pemilik Rekening"
                                     fullWidth
                                     value={formData.name_acc || ''}
                                     onChange={(e) => setFormData({ ...formData, name_acc: e.target.value })}
@@ -449,8 +494,8 @@ const Partners = () => {
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleClose}>{t('common.cancel')}</Button>
-                    <Button onClick={handleSubmit} variant="contained">{t('common.save')}</Button>
+                    <Button onClick={handleClose}>Batal</Button>
+                    <Button onClick={handleSubmit} variant="contained">Simpan</Button>
                 </DialogActions>
             </Dialog>
         </Container>

@@ -19,47 +19,29 @@ import {
     type MRT_ColumnDef,
 } from 'material-react-table';
 import { useColorMode } from '../../context/ThemeContext';
-import { shipmentService } from '../../lib/shipmentService';
-import type { ShipmentDetailed } from '../../types/supabase';
+import { salesService } from '../../lib/salesService';
+import type { SalesOrderDetailed } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
-import ShipmentForm from './ShipmentForm';
-import { userService } from '../../lib/userService';
+import SalesOrderForm from './SalesOrderForm';
 
-const ShipmentList = () => {
+const SalesOrderList = () => {
     const { mode } = useColorMode();
     const { t } = useTranslation();
-    const [shipments, setShipments] = useState<ShipmentDetailed[]>([]);
+    const [orders, setOrders] = useState<SalesOrderDetailed[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [currentTab, setCurrentTab] = useState<'active' | 'completed'>('active');
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
-    const [users, setUsers] = useState<Record<string, { name: string; email: string }>>({});
 
-    const fetchUsers = async () => {
-        try {
-            const userData = await userService.getUsers();
-            const userMap: Record<string, { name: string; email: string }> = {};
-            userData.forEach(u => {
-                userMap[u.uuid] = {
-                    name: u.real_name || '',
-                    email: u.email || ''
-                };
-            });
-            setUsers(userMap);
-        } catch (err) {
-            console.error('Error fetching users for mapping:', err);
-        }
-    };
-
-    const fetchShipments = async () => {
+    const fetchOrders = async () => {
         try {
             setLoading(true);
-            const data = await shipmentService.getShipments();
-            setShipments(data);
+            const data = await salesService.getSalesOrders();
+            setOrders(data);
         } catch (err: any) {
-            console.error('Error fetching shipments:', err);
+            console.error('Error fetching sales orders:', err);
             setError('Terjadi kesalahan pada sistem saat memuat data.');
         } finally {
             setLoading(false);
@@ -67,14 +49,13 @@ const ShipmentList = () => {
     };
 
     useEffect(() => {
-        fetchShipments();
-        fetchUsers();
+        fetchOrders();
     }, []);
 
-    const columns = useMemo<MRT_ColumnDef<ShipmentDetailed>[]>(() => [
+    const columns = useMemo<MRT_ColumnDef<SalesOrderDetailed>[]>(() => [
         {
-            accessorKey: 'invoice_no',
-            header: 'No. Invoice',
+            accessorKey: 'order_no',
+            header: 'No. Penjualan',
             size: 150,
         },
         {
@@ -84,58 +65,27 @@ const ShipmentList = () => {
             Cell: ({ cell }) => cell.getValue<string>() || '-',
         },
         {
-            accessorKey: 'supplier_name',
-            header: 'Supplier',
+            accessorKey: 'customer_name',
+            header: 'Customer',
             size: 180,
         },
         {
-            accessorKey: 'vessel_name',
-            header: 'Vessel',
-            size: 150,
+            accessorKey: 'product_name',
+            header: 'Nama Produk',
+            size: 180,
         },
         {
-            accessorKey: 'asal_batu',
-            header: 'Asal Batu',
-            size: 150,
-            Cell: ({ cell }) => cell.getValue<string>() || '-',
-        },
-        {
-            accessorKey: 'sku_code',
-            header: 'Produk (SKU)',
-            size: 120,
-        },
-        {
-            accessorKey: 'jenis_batu',
-            header: 'Jenis Batu',
-            size: 120,
-            Cell: ({ cell }) => cell.getValue<string>() || '-',
-        },
-        {
-            accessorKey: 'quantity',
-            header: 'Kuantitas',
+            accessorKey: 'qty_ordered',
+            header: 'Qty Pesan',
             size: 120,
             Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
         },
         {
-            accessorKey: 'total_bayar',
-            header: 'Total Bayar',
-            size: 150,
-            Cell: ({ row }) => {
-                const qty = Number(row.original.quantity) || 0;
-                const price = Number(row.original.harga) || 0;
-                const ppn = Number(row.original.ppn_tax) || 0;
-                const pph = Number(row.original.pph_tax) || 0;
-                const disc = Number(row.original.disc) || 0;
-                const total = (qty * price) + ppn + pph - disc;
-                return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(total);
-            },
-        },
-        {
-            accessorKey: 'is_completed',
+            accessorKey: 'status',
             header: 'Status',
             size: 130,
-            Cell: ({ cell }) => {
-                const isCompleted = cell.getValue<boolean>();
+            Cell: ({ row }) => {
+                const isCompleted = row.original.is_completed;
                 return (
                     <Chip
                         label={isCompleted ? 'Selesai' : 'Aktif'}
@@ -145,67 +95,22 @@ const ShipmentList = () => {
                     />
                 );
             },
-        },
-        {
-            accessorKey: 'issue_date',
-            header: 'Tanggal Invoice',
-            size: 130,
-            Cell: ({ cell }) => cell.getValue<string>() || '-',
-        },
-        {
-            accessorKey: 'eta',
-            header: 'ETA',
-            size: 120,
-        },
-        {
-            accessorKey: 'created_by',
-            header: 'Dibuat Oleh',
-            size: 150,
-            Cell: ({ cell }) => {
-                const uuid = cell.getValue<string>();
-                if (!uuid) return '-';
-                const userInfo = users[uuid];
-                if (userInfo) {
-                    return userInfo.name || userInfo.email || uuid;
-                }
-                return uuid;
-            }
-        },
-        {
-            accessorKey: 'created_at',
-            header: 'Dibuat Pada',
-            size: 180,
-            Cell: ({ cell }) => {
-                const dateStr = cell.getValue<string>();
-                if (!dateStr) return '-';
-                try {
-                    return new Date(dateStr).toLocaleString('id-ID', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                } catch {
-                    return dateStr;
-                }
-            }
         }
-    ], [users]);
+    ], []);
 
-    const filteredShipments = useMemo(() => {
-        return shipments.filter(s => {
+    const filteredOrders = useMemo(() => {
+        return orders.filter(so => {
             if (currentTab === 'active') {
-                return !s.is_completed;
+                return !so.is_completed;
             } else {
-                return !!s.is_completed;
+                return !!so.is_completed;
             }
         });
-    }, [shipments, currentTab]);
+    }, [orders, currentTab]);
 
     const table = useMaterialReactTable({
         columns,
-        data: filteredShipments,
+        data: filteredOrders,
         state: {
             isLoading: loading,
             showProgressBars: loading,
@@ -266,8 +171,8 @@ const ShipmentList = () => {
     return (
         <Container maxWidth="xl">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    Pembelian / Inbound
+                <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    Sales Orders / Penjualan
                 </Typography>
                 <Button
                     variant="contained"
@@ -279,10 +184,10 @@ const ShipmentList = () => {
                     sx={{
                         borderRadius: '20px',
                         textTransform: 'none',
-                        background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                        background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)',
                     }}
                 >
-                    Tambah Pembelian
+                    Tambah Penjualan
                 </Button>
             </Box>
 
@@ -315,11 +220,11 @@ const ShipmentList = () => {
                 }}
             >
                 <DialogContent sx={{ p: 0 }}>
-                    <ShipmentForm
-                        shipmentId={selectedId}
+                    <SalesOrderForm
+                        salesOrderId={selectedId}
                         onSuccess={(msg) => {
                             setModalOpen(false);
-                            fetchShipments();
+                            fetchOrders();
                             if (msg) setSuccessMsg(msg);
                         }}
                         onClose={() => setModalOpen(false)}
@@ -338,4 +243,4 @@ const ShipmentList = () => {
     );
 };
 
-export default ShipmentList;
+export default SalesOrderList;

@@ -94,7 +94,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error('Error in profile logic:', err?.message || err, err?.stack);
             // Specifically handle timeout to inform user but unblock UI
             if (err?.message === 'TIMEOUT_CHECKING_PROFILE') {
-                console.warn('Profile fetch timed out. Proceeding with limited access.');
                 setAuthError('Connection timed out. Some features may be limited.');
             }
         } finally {

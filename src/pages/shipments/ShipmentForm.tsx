@@ -128,7 +128,8 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                     }
                 }
             } catch (err: any) {
-                setError(err.message);
+                console.error('Error loading shipment master data:', err);
+                setError('Gagal memuat data master dari sistem.');
             }
         };
         loadMasterData();
@@ -143,9 +144,22 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
         setLoading(true);
         setError(null);
 
+        const trimmedInvoiceNo = data.invoice_no?.trim() || '';
+        const trimmedVesselName = data.vessel_name?.trim() || '';
+        const trimmedAsalBatu = data.asal_batu?.trim() || '';
+
+        if (!trimmedInvoiceNo || !trimmedVesselName) {
+            setError('No. Invoice dan Nama Vessel wajib diisi');
+            setLoading(false);
+            return;
+        }
+
         // Sanitize data and apply defaults
         const savePayload: Partial<Shipment> = {
             ...data,
+            invoice_no: trimmedInvoiceNo,
+            vessel_name: trimmedVesselName,
+            asal_batu: trimmedAsalBatu,
             company_id: loggedInProfile?.company_id || null,
             ppn_tax: data.ppn_tax || 0,
             pph_tax: data.pph_tax || 0,
@@ -205,7 +219,8 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
 
             onSuccess(successMessage);
         } catch (err: any) {
-            setError(err.message);
+            console.error('Error saving shipment:', err);
+            setError('Terjadi kesalahan pada sistem saat menyimpan data.');
         } finally {
             setLoading(false);
         }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     List,
     ListItem,
@@ -15,19 +15,19 @@ import {
     Storage as MasterDataIcon,
     ShoppingCart as ProcurementIcon,
     Inventory as InventoryIcon,
-    LocalShipping as LogisticsIcon,
     AttachMoney as FinanceIcon,
     Settings as SettingsIcon,
-    PointOfSale as SalesIcon,
     ExpandLess,
     ExpandMore,
     People as PartnersIcon,
     Category as ProductsIcon,
     ExitToApp as LogoutIcon,
-    Input as InputIcon,
-    Monitor as MonitorIcon,
     Business as CompaniesIcon,
-    AdminPanelSettings as AdminIcon
+    AdminPanelSettings as AdminIcon,
+    ShoppingCart as ShoppingCartIcon,
+    Description as DescriptionIcon,
+    DirectionsBoat as DirectionsBoatIcon,
+    Warehouse as WarehouseIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -59,7 +59,17 @@ const MENU_ITEMS: MenuItemInfo[] = [
     },
     { key: 'sidebar.procurement', path: '/shipments', icon: <ProcurementIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
     { key: 'sidebar.inventory', path: '/inventory', icon: <InventoryIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-    { key: 'sidebar.sales', path: '/sales', icon: <SalesIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+    {
+        key: 'sidebar.sales',
+        icon: <ShoppingCartIcon />,
+        allowedRoles: [1, 2, 3, 4, 5, 6],
+        children: [
+            { key: 'sidebar.sales_master', path: '/sales/orders', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.sales_direct_barge', path: '/sales/direct-barge', icon: <DirectionsBoatIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.sales_stockpile', path: '/sales/stockpile', icon: <WarehouseIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] }
+        ]
+    },
+    /*
     {
         key: 'sidebar.logistics',
         icon: <LogisticsIcon />,
@@ -69,6 +79,7 @@ const MENU_ITEMS: MenuItemInfo[] = [
             { key: 'sidebar.monitoring', path: '/logistics/monitoring', icon: <MonitorIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
         ]
     },
+    */
     { key: 'sidebar.finance', path: '/finance', icon: <FinanceIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
     { key: 'sidebar.user_management', path: '/admin/users', icon: <AdminIcon />, allowedRoles: [8] },
     { key: 'sidebar.settings', path: '/settings', icon: <SettingsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7, 8] },
@@ -85,6 +96,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     const { profile, signOut } = useAuth();
     const { t } = useTranslation();
     const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+        const initialOpenStates: Record<string, boolean> = {};
+        MENU_ITEMS.forEach(item => {
+            if (item.children) {
+                const hasActiveChild = item.children.some(child => child.path && location.pathname === child.path);
+                if (hasActiveChild) {
+                    initialOpenStates[item.key] = true;
+                }
+            }
+        });
+        setOpenSubMenus(prev => ({ ...prev, ...initialOpenStates }));
+    }, [location.pathname]);
 
     const userRole = profile?.user_role ? Number(profile.user_role) : 0;
     const navTitle = import.meta.env.VITE_APP_NAME || 'NSM';

@@ -16,6 +16,9 @@ import ShipmentList from './pages/shipments/ShipmentList';
 import TallyInput from './pages/logistics/TallyInput';
 import Monitoring from './pages/logistics/Monitoring';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
+import SalesOrderList from './pages/sales/SalesOrderList';
+import DirectDelivery from './pages/sales/DirectDelivery';
+import StockpileDelivery from './pages/sales/StockpileDelivery';
 
 
 // AG Grid Styles
@@ -44,6 +47,9 @@ function App() {
                 <Route path="/logistics/input" element={<TallyInput />} />
                 <Route path="/logistics/monitoring" element={<Monitoring />} />
                 <Route path="/inventory" element={<InventoryDashboard />} />
+                <Route path="/sales/orders" element={<SalesOrderList />} />
+                <Route path="/sales/direct-barge" element={<DirectDelivery />} />
+                <Route path="/sales/stockpile" element={<StockpileDelivery />} />
 
                 <Route path="/settings" element={<Settings />} />
               </Route>
