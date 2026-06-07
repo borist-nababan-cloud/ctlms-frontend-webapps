@@ -192,6 +192,7 @@ export interface DeliveryOrder {
     tare_weight?: number;
     vessel_name?: string | null;
     published_product_name?: string | null;
+    internal_product_id?: string | null;
 }
 
 export interface Database {

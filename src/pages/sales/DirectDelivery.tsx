@@ -455,6 +455,7 @@ const DirectDelivery: React.FC = () => {
                 // UPDATE FLOW
                 const payload: Partial<DeliveryOrder> = {
                     sales_order_id: data.sales_order_id,
+                    internal_product_id: data.internal_product_id,
                     truck_plate: trimmedTruckPlate,
                     ticket_number: trimmedTicketNumber,
                     gross_weight: data.gross_weight,
@@ -478,6 +479,7 @@ const DirectDelivery: React.FC = () => {
 
                 const payload: Partial<DeliveryOrder> = {
                     sales_order_id: data.sales_order_id,
+                    internal_product_id: data.internal_product_id,
                     truck_plate: trimmedTruckPlate,
                     ticket_number: trimmedTicketNumber,
                     gross_weight: data.gross_weight,
