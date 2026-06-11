@@ -66,13 +66,11 @@ const TallyInput = () => {
             const active = data.filter(s => ['discharging', 'sailing'].includes(s.status));
             setActiveShipments(active);
         } catch {
-            setError('Failed to load active shipments');
+            setError('Gagal memuat data pengiriman aktif.');
         } finally {
             setLoading(false);
         }
     };
-
-
 
     // Helper to convert file to base64
     const fileToBase64 = (file: File): Promise<string> => {
@@ -120,17 +118,14 @@ const TallyInput = () => {
                 if (data.gross_weight) setValue('gross_weight', data.gross_weight);
                 if (data.tare_weight) setValue('tare_weight', data.tare_weight);
 
-                setSuccessMsg('OCR Scanned Successfully');
+                setSuccessMsg('Tiket berhasil dipindai dengan OCR');
 
             } catch (err: any) {
-
-                // Specific handling for 401 (often environment mismatch locally)
+                console.error('OCR Error:', err);
                 if (err.status === 401 || (err.message && err.message.includes('401'))) {
-                    setError('Unauthorized (401). Check if VITE_SUPABASE_ANON_KEY in .env matches your local "supabase status" output.');
-                } else if (err.message && err.message.includes('OCR Server Error')) {
-                    setError(err.message); // Show the tunneled error from backend
+                    setError('Akses tidak sah (401). Terjadi kesalahan otentikasi.');
                 } else {
-                    setError('Failed to scan ticket. Please try again or input manually.');
+                    setError('Gagal memindai tiket. Silakan coba lagi atau input manual.');
                 }
             } finally {
                 setScanning(false);
@@ -142,7 +137,19 @@ const TallyInput = () => {
         // Validate File
         try {
             if (!data.shipment_id) {
-                setError('Please Select Shipment');
+                setError('Silakan pilih pengiriman.');
+                return;
+            }
+
+            const trimmedPlate = data.truck_plate?.trim() || '';
+            const trimmedTicket = String(data.ticket_number || '').trim();
+
+            if (!trimmedPlate) {
+                setError('No. Polisi Truk wajib diisi');
+                return;
+            }
+            if (!trimmedTicket) {
+                setError('Nomor Tiket Timbangan wajib diisi');
                 return;
             }
 
@@ -150,7 +157,7 @@ const TallyInput = () => {
             // 1. Upload Photo (Optional)
             let publicUrl: string | null = null;
             if (selectedFile) {
-                const fileName = `${Date.now()}_${data.ticket_number}.jpg`;
+                const fileName = `${Date.now()}_${trimmedTicket}.jpg`;
                 const filePath = `logistics/${fileName}`;
                 publicUrl = await logisticsService.uploadTicketPhoto(selectedFile, filePath);
             }
@@ -158,12 +165,13 @@ const TallyInput = () => {
             // 2. Insert Log
             await logisticsService.createLog({
                 ...data,
-                truck_plate: data.truck_plate?.toUpperCase(),
+                truck_plate: trimmedPlate.toUpperCase(),
+                ticket_number: trimmedTicket,
                 photo_url: publicUrl
             });
 
             // Success
-            setSuccessMsg(`Log Saved! Net: ${data.net_weight?.toLocaleString('id-ID')} Kg`);
+            setSuccessMsg(`Log berhasil disimpan! Netto: ${data.net_weight?.toLocaleString('id-ID')} Kg`);
 
             // Reset Form but keep shipment selected
             const currentShipment = data.shipment_id;
@@ -179,7 +187,8 @@ const TallyInput = () => {
             setPreviewUrl(null);
 
         } catch (err: any) {
-            setError(err.message || 'Failed to save log');
+            console.error('Error saving log:', err);
+            setError('Terjadi kesalahan pada sistem saat menyimpan data.');
         } finally {
             setSubmitting(false);
         }
@@ -202,12 +211,12 @@ const TallyInput = () => {
                             <Controller
                                 name="shipment_id"
                                 control={control}
-                                rules={{ required: 'Shipment is required' }}
+                                rules={{ required: 'Pengiriman wajib dipilih' }}
                                 render={({ field }) => (
                                     <TextField
                                         {...field}
                                         select
-                                        label="Select Shipment"
+                                        label="Pilih Pengiriman"
                                         fullWidth
                                         disabled={loading}
                                     >
@@ -232,7 +241,7 @@ const TallyInput = () => {
                                     sx={{ py: 1.5, borderStyle: 'dashed', borderWidth: 2 }}
                                     disabled={scanning || submitting}
                                 >
-                                    {scanning ? 'Scanning...' : 'Camera'}
+                                    {scanning ? 'Memindai...' : 'Kamera'}
                                     <input
                                         hidden
                                         accept="image/*"
@@ -252,7 +261,7 @@ const TallyInput = () => {
                                     sx={{ py: 1.5, borderStyle: 'dashed', borderWidth: 2 }}
                                     disabled={scanning || submitting}
                                 >
-                                    {scanning ? 'Scanning...' : 'Gallery'}
+                                    {scanning ? 'Memindai...' : 'Galeri'}
                                     <input
                                         hidden
                                         accept="image/*"
@@ -275,11 +284,11 @@ const TallyInput = () => {
                             <Controller
                                 name="truck_plate"
                                 control={control}
-                                rules={{ required: 'Plate No is required' }}
+                                rules={{ required: 'No. Polisi wajib diisi' }}
                                 render={({ field }) => (
                                     <TextField
                                         {...field}
-                                        label="Truck Plate No."
+                                        label="No. Polisi Truk"
                                         placeholder="e.g. B 1234 XY"
                                         fullWidth
                                         InputLabelProps={{ shrink: true }}
@@ -291,11 +300,11 @@ const TallyInput = () => {
                             <Controller
                                 name="ticket_number"
                                 control={control}
-                                rules={{ required: 'Ticket No is required' }}
+                                rules={{ required: 'Nomor Tiket wajib diisi' }}
                                 render={({ field }) => (
                                     <TextField
                                         {...field}
-                                        label="Weighing Ticket No."
+                                        label="Nomor Tiket Timbangan"
                                         fullWidth
                                         type="number" // Changed to number to match OCR output type
                                         InputLabelProps={{ shrink: true }}
@@ -337,7 +346,7 @@ const TallyInput = () => {
 
                             {/* Net Weight Display */}
                             <Box sx={{ bgcolor: 'action.hover', p: 2, borderRadius: 2, textAlign: 'center' }}>
-                                <Typography variant="caption" color="textSecondary">NET WEIGHT</Typography>
+                                <Typography variant="caption" color="textSecondary">BERAT BERSIH (NETTO)</Typography>
                                 <Typography variant="h4" color="primary" fontWeight="bold">
                                     {(gross - tare).toLocaleString('id-ID')} <span style={{ fontSize: '1rem' }}>Kg</span>
                                 </Typography>
@@ -351,7 +360,7 @@ const TallyInput = () => {
                                 disabled={submitting || scanning}
                                 sx={{ mt: 2, py: 1.5, fontSize: '1.1rem' }}
                             >
-                                {submitting ? <CircularProgress size={24} color="inherit" /> : 'SUBMIT DATA'}
+                                {submitting ? <CircularProgress size={24} color="inherit" /> : 'KIRIM DATA'}
                             </Button>
 
                         </Stack>

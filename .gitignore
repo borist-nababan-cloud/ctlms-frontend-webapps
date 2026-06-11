@@ -26,6 +26,7 @@ dist-ssr
 docs/
 my-cred/
 database-docs/
+scratch/
 *.sql
 .env
 *.env
@@ -34,3 +35,4 @@ database-docs/
 !README.md
 
 nul
+

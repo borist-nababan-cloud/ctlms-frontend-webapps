@@ -45,7 +45,8 @@ const Products = () => {
             const data = await masterService.getProducts();
             setProducts(data);
         } catch (err: any) {
-            setError(err.message);
+            console.error('Error loading products:', err);
+            setError('Gagal memuat data produk.');
         } finally {
             setLoading(false);
         }
@@ -168,7 +169,7 @@ const Products = () => {
                 startIcon={<EditIcon />}
                 size="small"
             >
-                Edit
+                Ubah
             </Button>
         ),
         // Futuristic Glass Theme Props
@@ -240,7 +241,7 @@ const Products = () => {
 
             {/* Dialog */}
             <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
-                <DialogTitle>{editingId ? 'Edit Produk' : 'Tambah Produk Baru'}</DialogTitle>
+                <DialogTitle>{editingId ? 'Ubah Produk' : 'Tambah Produk Baru'}</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                         {dialogError && <Alert severity="error">{dialogError}</Alert>}

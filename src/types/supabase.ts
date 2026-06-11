@@ -193,6 +193,23 @@ export interface DeliveryOrder {
     vessel_name?: string | null;
     published_product_name?: string | null;
     internal_product_id?: string | null;
+    delivery_type?: 'DIRECT' | 'STOCKPILE' | null;
+}
+
+export interface DeliveryOrderItem {
+    id: string; // uuid
+    created_at?: string;
+    do_id: string | null; // uuid
+    internal_product_id: string | null; // uuid
+    type_production_id: string | null; // uuid
+    blending_id: string | null; // uuid
+    truck_plate: string | null;
+    gross_weight: number | null;
+    tare_weight: number | null;
+    net_weight: number | null;
+    photo_url: string | null;
+    shipment_id: string | null; // uuid -> shipments
+    vessel_name: string | null;
 }
 
 export interface Database {
@@ -247,6 +264,11 @@ export interface Database {
                 Row: DeliveryOrder;
                 Insert: Omit<DeliveryOrder, 'id' | 'created_at'>;
                 Update: Partial<DeliveryOrder>;
+            };
+            delivery_order_items: {
+                Row: DeliveryOrderItem;
+                Insert: Omit<DeliveryOrderItem, 'id' | 'created_at'>;
+                Update: Partial<DeliveryOrderItem>;
             };
         };
     };

@@ -32,7 +32,8 @@ const Monitoring = () => {
             const data = await logisticsService.getLogs();
             setLogs(data);
         } catch (err: any) {
-            setError(err.message || 'Failed to load logs');
+            console.error('Error loading logs:', err);
+            setError('Gagal memuat data log.');
         } finally {
             setLoading(false);
         }
@@ -45,28 +46,28 @@ const Monitoring = () => {
     const columns = useMemo<MRT_ColumnDef<any>[]>(() => [
         {
             accessorKey: 'created_at',
-            header: 'Date/Time',
+            header: 'Tanggal/Waktu',
             size: 180,
             Cell: ({ cell }) => new Date(cell.getValue<string>()).toLocaleString('id-ID'),
         },
         {
             accessorKey: 'shipments.vessel_name',
-            header: 'Vessel',
+            header: 'Vessel / Tongkang',
             size: 200,
         },
         {
             accessorKey: 'truck_plate',
-            header: 'Truck Plate',
+            header: 'No. Polisi Truk',
             size: 120,
         },
         {
             accessorKey: 'ticket_number',
-            header: 'Ticket No',
+            header: 'Nomor Tiket',
             size: 120,
         },
         {
             accessorKey: 'net_weight',
-            header: 'Net (Kg)',
+            header: 'Netto (Kg)',
             size: 120,
             Cell: ({ cell }) => (
                 <span style={{ fontWeight: 'bold', color: '#4caf50' }}>
@@ -76,18 +77,18 @@ const Monitoring = () => {
         },
         {
             accessorKey: 'photo_url',
-            header: 'Photo',
+            header: 'Foto',
             size: 100,
             Cell: ({ cell }) => {
                 const url = cell.getValue<string>();
-                if (!url) return <Chip label="No Photo" size="small" variant="outlined" />;
+                if (!url) return <Chip label="Tidak ada Foto" size="small" variant="outlined" />;
                 return (
                     <Button
                         size="small"
                         variant="outlined"
                         onClick={() => window.open(url, '_blank')}
                     >
-                        View
+                        Lihat
                     </Button>
                 );
             },
@@ -147,7 +148,7 @@ const Monitoring = () => {
                     {t('sidebar.monitoring')}
                 </Typography>
                 <Button startIcon={<Refresh />} onClick={loadData} disabled={loading}>
-                    Refresh
+                    Perbarui
                 </Button>
             </Box>
 

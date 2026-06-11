@@ -58,14 +58,16 @@ const Settings = () => {
         try {
             const { error } = await supabase.auth.updateUser({ password: newPassword });
             if (error) {
-                setErrorMsg(error.message || 'Gagal mengubah password');
+                console.error('Error changing password:', error);
+                setErrorMsg('Gagal mengubah password. Silakan coba lagi.');
             } else {
                 setNewPassword('');
                 setConfirmPassword('');
                 setSuccessOpen(true);
             }
         } catch (err: any) {
-            setErrorMsg(err.message || 'Gagal mengubah password');
+            console.error('Unexpected error changing password:', err);
+            setErrorMsg('Terjadi kesalahan pada sistem saat mengubah password.');
         } finally {
             setSubmitting(false);
         }
@@ -81,7 +83,7 @@ const Settings = () => {
             <Card sx={{ mb: 3 }}>
                 <CardContent>
                     <Typography variant="h6" gutterBottom>
-                        Appearance
+                        Tampilan
                     </Typography>
                     <List>
                         <ListItem>
@@ -89,8 +91,8 @@ const Settings = () => {
                                 {mode === 'dark' ? <DarkMode /> : <LightMode />}
                             </Box>
                             <ListItemText
-                                primary="Dark Mode"
-                                secondary="Switch between light and dark themes"
+                                primary="Mode Gelap"
+                                secondary="Peralihan antara tema terang dan gelap"
                             />
                             <ListItemSecondaryAction>
                                 <Switch
@@ -108,7 +110,7 @@ const Settings = () => {
             <Card>
                 <CardContent>
                     <Typography variant="h6" gutterBottom>
-                        Account Information
+                        Informasi Akun
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 2 }}>
                         <Avatar sx={{ width: 64, height: 64, mr: 2, bgcolor: 'primary.main' }}>
@@ -127,15 +129,15 @@ const Settings = () => {
                     <List dense>
                         <ListItem>
                             <ListItemText
-                                primary="User ID"
+                                primary="ID Pengguna"
                                 secondary={profile?.uuid}
                                 secondaryTypographyProps={{ sx: { fontFamily: 'monospace' } }}
                             />
                         </ListItem>
                         <ListItem>
                             <ListItemText
-                                primary="Role ID"
-                                secondary={profile?.user_role?.toString() || 'N/A'}
+                                primary="ID Peran"
+                                secondary={profile?.user_role?.toString() || 'Tidak ada'}
                             />
                         </ListItem>
                     </List>

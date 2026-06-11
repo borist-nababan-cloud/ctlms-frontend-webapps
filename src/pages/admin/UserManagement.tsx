@@ -88,7 +88,8 @@ const UserManagement = () => {
             setCompanies(companiesData);
             setWarehouses(warehousesData);
         } catch (err: any) {
-            setError(err.message);
+            console.error('Error loading users data:', err);
+            setError('Gagal memuat data pengguna.');
         } finally {
             setLoading(false);
         }
@@ -162,7 +163,8 @@ const UserManagement = () => {
             setOpen(false);
             fetchData();
         } catch (err: any) {
-            setError(err.message);
+            console.error('Error saving user profile:', err);
+            setError('Terjadi kesalahan pada sistem saat menyimpan data.');
         } finally {
             setSaving(false);
         }
@@ -327,7 +329,7 @@ const UserManagement = () => {
                                         onChange={(e) => field.onChange(Number(e.target.value) || null)}
                                     >
                                         <MenuItem value="">
-                                            <em>None</em>
+                                            <em>Tidak ada</em>
                                         </MenuItem>
                                         {roles.map((role) => (
                                             <MenuItem key={role.id} value={role.id}>
@@ -354,7 +356,7 @@ const UserManagement = () => {
                                         onChange={(e) => field.onChange(e.target.value || null)}
                                     >
                                         <MenuItem value="">
-                                            <em>None</em>
+                                            <em>Tidak ada</em>
                                         </MenuItem>
                                         {companies.map((company) => (
                                             <MenuItem key={company.id} value={company.id}>
@@ -381,7 +383,7 @@ const UserManagement = () => {
                                         onChange={(e) => field.onChange(e.target.value || null)}
                                     >
                                         <MenuItem value="">
-                                            <em>None</em>
+                                            <em>Tidak ada</em>
                                         </MenuItem>
                                         {filteredWarehouses.map((wh) => (
                                             <MenuItem key={wh.id} value={wh.id}>
@@ -405,7 +407,7 @@ const UserManagement = () => {
                                 borderRadius: '8px'
                             }}
                         >
-                            {saving ? 'Saving...' : t('common.save')}
+                            {saving ? 'Menyimpan...' : t('common.save')}
                         </Button>
                     </DialogActions>
                 </Box>

@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { Box, Typography, Grid } from '@mui/material';
-import type { DeliveryOrder, SalesOrderDetailed, MasterCompany } from '../../types/supabase';
+import type { SalesOrderDetailed, MasterCompany } from '../../types/supabase';
 
 interface SuratJalanPrintProps {
-    deliveryOrder: Partial<DeliveryOrder> | null;
+    deliveryOrder: any;
     salesOrder: SalesOrderDetailed | null;
     company: MasterCompany | null;
     customProductName?: string | null;
@@ -19,6 +20,13 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
             year: 'numeric'
         });
 
+        const items: any[] = deliveryOrder.items || [];
+        
+        // Sum weights
+        const totalGross = items.reduce((sum: number, item: any) => sum + (Number(item.gross_weight) || 0), 0);
+        const totalTare = items.reduce((sum: number, item: any) => sum + (Number(item.tare_weight) || 0), 0);
+        const totalNetto = items.reduce((sum: number, item: any) => sum + (Number(item.net_weight) || 0), 0);
+
         return (
             <div ref={ref} style={{
                 width: '9.5in',
@@ -26,7 +34,7 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                 padding: '0.4in',
                 boxSizing: 'border-box',
                 fontFamily: 'monospace',
-                fontSize: '12px',
+                fontSize: '11px',
                 color: '#000',
                 backgroundColor: '#fff',
                 position: 'relative'
@@ -45,26 +53,26 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                 `}</style>
 
                 {/* Header */}
-                <Grid container spacing={2} sx={{ mb: 2, borderBottom: '2px double #000', pb: 1, alignItems: 'center' }}>
+                <Grid container spacing={2} sx={{ mb: 1.5, borderBottom: '2px double #000', pb: 0.5, alignItems: 'center' }}>
                     <Grid size={2} sx={{ display: 'flex', alignItems: 'center' }}>
                         {company?.logo_url ? (
-                            <img src={company.logo_url} alt="Logo" style={{ maxHeight: '45px', maxWidth: '80px', objectFit: 'contain' }} />
+                            <img src={company.logo_url} alt="Logo" style={{ maxHeight: '40px', maxWidth: '75px', objectFit: 'contain' }} />
                         ) : (
-                            <Box sx={{ width: '45px', height: '45px', border: '1px dashed #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px' }}>
+                            <Box sx={{ width: '40px', height: '40px', border: '1px dashed #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px' }}>
                                 Logo
                             </Box>
                         )}
                     </Grid>
                     <Grid size={5}>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '13px', textTransform: 'uppercase', lineHeight: 1.2 }}>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '12px', textTransform: 'uppercase', lineHeight: 1.2 }}>
                             {company?.name || 'PERUSAHAAN'}
                         </Typography>
-                        <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '9px', display: 'block', mt: 0.5, lineHeight: 1.2 }}>
+                        <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '8.5px', display: 'block', mt: 0.2, lineHeight: 1.1 }}>
                             {company?.address1 || ''} {company?.city || ''}
                         </Typography>
                     </Grid>
                     <Grid size={5} sx={{ textAlign: 'right' }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '15px', letterSpacing: '1px', m: 0 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '14px', letterSpacing: '1px', m: 0 }}>
                             SURAT JALAN
                         </Typography>
                         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', m: 0 }}>
@@ -74,22 +82,22 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                 </Grid>
 
                 {/* Info Metadata */}
-                <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid container spacing={2} sx={{ mb: 1.5 }}>
                     <Grid size={6}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'monospace', fontSize: '11px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'monospace', fontSize: '10px' }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ width: '110px', padding: '2px 0' }}>Tanggal</td>
+                                    <td style={{ width: '110px', padding: '1px 0' }}>Tanggal</td>
                                     <td style={{ width: '10px' }}>:</td>
                                     <td style={{ fontWeight: 'bold' }}>{today}</td>
                                 </tr>
                                 <tr>
-                                    <td style={{ padding: '2px 0' }}>No. Sales Order</td>
+                                    <td style={{ padding: '1px 0' }}>No. Sales Order</td>
                                     <td>:</td>
                                     <td>{salesOrder.order_no}</td>
                                 </tr>
                                 <tr>
-                                    <td style={{ padding: '2px 0' }}>Customer</td>
+                                    <td style={{ padding: '1px 0' }}>Customer</td>
                                     <td>:</td>
                                     <td style={{ fontWeight: 'bold' }}>{salesOrder.customer_name}</td>
                                 </tr>
@@ -97,80 +105,103 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                         </table>
                     </Grid>
                     <Grid size={6}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'monospace', fontSize: '11px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'monospace', fontSize: '10px' }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ width: '130px', padding: '2px 0' }}>No. Polisi (Truck)</td>
+                                    <td style={{ width: '130px', padding: '1px 0' }}>Nama Produk (Pub)</td>
                                     <td style={{ width: '10px' }}>:</td>
-                                    <td style={{ fontWeight: 'bold' }}>{deliveryOrder.truck_plate || '-'}</td>
-                                </tr>
-                                <tr>
-                                    <td style={{ padding: '2px 0' }}>Vessel/Barge</td>
-                                    <td>:</td>
-                                    <td>{deliveryOrder.vessel_name || '-'}</td>
-                                </tr>
-                                <tr>
-                                    <td style={{ padding: '2px 0' }}>No. Tiket Timbangan</td>
-                                    <td>:</td>
-                                    <td>{deliveryOrder.ticket_number || '-'}</td>
+                                    <td style={{ fontWeight: 'bold' }}>{customProductName || salesOrder.product_name}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </Grid>
                 </Grid>
 
-                {/* Table */}
-                <table style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    borderTop: '1px solid #000',
-                    borderBottom: '1px solid #000',
-                    fontFamily: 'monospace',
-                    fontSize: '11px',
-                    marginBottom: '15px'
-                }}>
-                    <thead>
-                        <tr style={{ borderBottom: '1px solid #000' }}>
-                            <th style={{ textAlign: 'left', padding: '5px 0', width: '40px' }}>NO</th>
-                            <th style={{ textAlign: 'left', padding: '5px 0' }}>NAMA BARANG</th>
-                            <th style={{ textAlign: 'right', padding: '5px 0', width: '120px' }}>QTY (KG)</th>
-                            <th style={{ textAlign: 'right', padding: '5px 0', width: '120px' }}>QTY (MT)</th>
-                            <th style={{ textAlign: 'left', padding: '5px 0', width: '150px', paddingLeft: '20px' }}>KETERANGAN</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style={{ padding: '6px 0', verticalAlign: 'top' }}>1</td>
-                            <td style={{ padding: '6px 0', verticalAlign: 'top', fontWeight: 'bold' }}>{customProductName || salesOrder.product_name}</td>
-                            <td style={{ padding: '6px 0', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold' }}>
-                                {Number(deliveryOrder.net_weight || 0).toLocaleString('id-ID')}
-                            </td>
-                            <td style={{ padding: '6px 0', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold' }}>
-                                {(Number(deliveryOrder.net_weight || 0) / 1000).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td style={{ padding: '6px 0', verticalAlign: 'top', paddingLeft: '20px' }}>
-                                Direct Delivery
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                {/* Table of detail items */}
+                <div style={{ maxHeight: '1.9in', overflow: 'hidden' }}>
+                    <table style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        borderTop: '1px solid #000',
+                        borderBottom: '1px solid #000',
+                        fontFamily: 'monospace',
+                        fontSize: '9.5px',
+                        marginBottom: '8px'
+                    }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid #000' }}>
+                                <th style={{ textAlign: 'left', padding: '4px 0', width: '30px' }}>NO</th>
+                                <th style={{ textAlign: 'left', padding: '4px 0', width: '100px' }}>NO. POLISI</th>
+                                <th style={{ textAlign: 'left', padding: '4px 0' }}>PRODUK INTERNAL</th>
+                                <th style={{ textAlign: 'right', padding: '4px 0', width: '80px' }}>GROSS (KG)</th>
+                                <th style={{ textAlign: 'right', padding: '4px 0', width: '80px' }}>TARE (KG)</th>
+                                <th style={{ textAlign: 'right', padding: '4px 0', width: '90px' }}>NETTO (KG)</th>
+                                <th style={{ textAlign: 'left', padding: '4px 0', width: '100px', paddingLeft: '15px' }}>KET</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {items.length > 0 ? (
+                                items.map((item: any, idx: number) => (
+                                    <tr key={item.id || idx}>
+                                        <td style={{ padding: '3px 0' }}>{idx + 1}</td>
+                                        <td style={{ padding: '3px 0', fontWeight: 'bold' }}>{item.truck_plate || '-'}</td>
+                                        <td style={{ padding: '3px 0' }}>{item.internal_product?.name || '-'}</td>
+                                        <td style={{ padding: '3px 0', textAlign: 'right' }}>{Number(item.gross_weight || 0).toLocaleString('id-ID')}</td>
+                                        <td style={{ padding: '3px 0', textAlign: 'right' }}>{Number(item.tare_weight || 0).toLocaleString('id-ID')}</td>
+                                        <td style={{ padding: '3px 0', textAlign: 'right', fontWeight: 'bold' }}>{Number(item.net_weight || 0).toLocaleString('id-ID')}</td>
+                                        <td style={{ padding: '3px 0', paddingLeft: '15px' }}>
+                                            {item.type_production?.nama_type || item.blending?.nama_blending || '-'}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td style={{ padding: '3px 0' }}>1</td>
+                                    <td style={{ padding: '3px 0', fontWeight: 'bold' }}>{deliveryOrder.truck_plate || '-'}</td>
+                                    <td style={{ padding: '3px 0' }}>{deliveryOrder.internal_product_name || '-'}</td>
+                                    <td style={{ padding: '3px 0', textAlign: 'right' }}>{Number(deliveryOrder.gross_weight || 0).toLocaleString('id-ID')}</td>
+                                    <td style={{ padding: '3px 0', textAlign: 'right' }}>{Number(deliveryOrder.tare_weight || 0).toLocaleString('id-ID')}</td>
+                                    <td style={{ padding: '3px 0', textAlign: 'right', fontWeight: 'bold' }}>{Number(deliveryOrder.net_weight || 0).toLocaleString('id-ID')}</td>
+                                    <td style={{ padding: '3px 0', paddingLeft: '15px' }}>-</td>
+                                </tr>
+                            )}
+                            
+                            {/* Summary row */}
+                            <tr style={{ borderTop: '1px dashed #000', fontWeight: 'bold' }}>
+                                <td colSpan={3} style={{ padding: '4px 0', textAlign: 'left' }}>TOTAL</td>
+                                <td style={{ padding: '4px 0', textAlign: 'right' }}>
+                                    {(items.length > 0 ? totalGross : Number(deliveryOrder.gross_weight || 0)).toLocaleString('id-ID')}
+                                </td>
+                                <td style={{ padding: '4px 0', textAlign: 'right' }}>
+                                    {(items.length > 0 ? totalTare : Number(deliveryOrder.tare_weight || 0)).toLocaleString('id-ID')}
+                                </td>
+                                <td style={{ padding: '4px 0', textAlign: 'right', color: 'blue' }}>
+                                    {(items.length > 0 ? totalNetto : Number(deliveryOrder.net_weight || 0)).toLocaleString('id-ID')}
+                                </td>
+                                <td style={{ padding: '4px 0', paddingLeft: '15px' }}>
+                                    {((items.length > 0 ? totalNetto : Number(deliveryOrder.net_weight || 0)) / 1000).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 {/* Signatures */}
-                <Grid container spacing={1} sx={{ position: 'absolute', bottom: '0.4in', left: '0.4in', right: '0.4in', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>
+                <Grid container spacing={1} sx={{ position: 'absolute', bottom: '0.3in', left: '0.4in', right: '0.4in', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px' }}>
                     <Grid size={4}>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>Penerima / Recipient,</Typography>
-                        <Box sx={{ height: '45px' }} />
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '11px' }}>( ____________________ )</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '10px' }}>Penerima / Recipient,</Typography>
+                        <Box sx={{ height: '35px' }} />
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '10px' }}>( ____________________ )</Typography>
                     </Grid>
                     <Grid size={4}>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>Sopir / Driver,</Typography>
-                        <Box sx={{ height: '45px' }} />
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '11px' }}>( ____________________ )</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '10px' }}>Sopir / Driver,</Typography>
+                        <Box sx={{ height: '35px' }} />
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '10px' }}>( ____________________ )</Typography>
                     </Grid>
                     <Grid size={4}>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>Pengirim / Sender,</Typography>
-                        <Box sx={{ height: '45px' }} />
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '11px' }}>( ____________________ )</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '10px' }}>Pengirim / Sender,</Typography>
+                        <Box sx={{ height: '35px' }} />
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '10px' }}>( ____________________ )</Typography>
                     </Grid>
                 </Grid>
             </div>
