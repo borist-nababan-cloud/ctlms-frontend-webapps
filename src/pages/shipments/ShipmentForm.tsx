@@ -17,6 +17,7 @@ import { masterService } from '../../lib/masterService';
 import type { Shipment, MasterPartner, MasterProduct } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabaseClient';
+import { containsHtmlOrScript } from '../../lib/sanitizer';
 
 // Helper to format currency/numbers with thousands separators
 const formatNumberStr = (value: number) => {
@@ -150,6 +151,12 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
 
         if (!trimmedInvoiceNo || !trimmedVesselName) {
             setError('No. Invoice dan Nama Vessel wajib diisi');
+            setLoading(false);
+            return;
+        }
+
+        if (containsHtmlOrScript(trimmedInvoiceNo) || containsHtmlOrScript(trimmedVesselName) || containsHtmlOrScript(trimmedAsalBatu)) {
+            setError('Input mengandung karakter tidak valid atau script berbahaya');
             setLoading(false);
             return;
         }

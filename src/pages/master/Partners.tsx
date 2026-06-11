@@ -26,6 +26,7 @@ import { useColorMode } from '../../context/ThemeContext';
 import { masterService } from '../../lib/masterService';
 import type { MasterPartner } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
+import { containsHtmlOrScript } from '../../lib/sanitizer';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -92,7 +93,8 @@ const Partners = () => {
             const data = await masterService.getPartners();
             setPartners(data);
         } catch (err: any) {
-            setError(err.message);
+            console.error('Error loading partners:', err);
+            setError('Terjadi kesalahan pada sistem saat memuat data mitra.');
         } finally {
             setLoading(false);
         }
@@ -205,6 +207,19 @@ const Partners = () => {
 
         if (!trimmedName) {
             setDialogError("Nama Mitra wajib diisi.");
+            return;
+        }
+
+        if (
+            containsHtmlOrScript(trimmedName) || containsHtmlOrScript(trimmedTaxId) ||
+            containsHtmlOrScript(trimmedAddress) || containsHtmlOrScript(trimmedCity) ||
+            containsHtmlOrScript(trimmedProvince) || containsHtmlOrScript(trimmedEmail) ||
+            containsHtmlOrScript(trimmedPhone) || containsHtmlOrScript(trimmedContactPerson) ||
+            containsHtmlOrScript(trimmedPhoneCp) || containsHtmlOrScript(trimmedWaCp) ||
+            containsHtmlOrScript(trimmedBankAcc) || containsHtmlOrScript(trimmedNoAcc) ||
+            containsHtmlOrScript(trimmedNameAcc)
+        ) {
+            setDialogError('Input mengandung karakter tidak valid atau script berbahaya');
             return;
         }
 

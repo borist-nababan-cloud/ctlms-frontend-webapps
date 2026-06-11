@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (error) {
                 console.error('AuthContext: Profile Check Error', error.message, error);
                 // Don't block the app on profile error, but show a message
-                setAuthError(`Profile Error: ${error.message}`);
+                setAuthError('Gagal memuat profil pengguna.');
                 // Proceed without profile? Or retry?
                 // For now, allow rendering but profile will be null
             } else if (data) {
@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error('Error in profile logic:', err?.message || err, err?.stack);
             // Specifically handle timeout to inform user but unblock UI
             if (err?.message === 'TIMEOUT_CHECKING_PROFILE') {
-                setAuthError('Connection timed out. Some features may be limited.');
+                setAuthError('Koneksi terputus. Beberapa fitur mungkin terbatas.');
             }
         } finally {
             fetchingUuidRef.current = null;

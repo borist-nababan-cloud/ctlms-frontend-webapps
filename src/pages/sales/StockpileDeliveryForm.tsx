@@ -30,6 +30,7 @@ import {
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { containsHtmlOrScript } from '../../lib/sanitizer';
 import { useColorMode } from '../../context/ThemeContext';
 import { deliveryService } from '../../lib/deliveryService';
 import { masterService } from '../../lib/masterService';
@@ -44,21 +45,27 @@ interface DeliveryOrderItemFormValue {
     type_production_id: string;
     blending_id: string;
     truck_plate: string;
+    ticket_number: string;
     gross_weight: number;
     tare_weight: number;
     net_weight: number;
+    produk_net?: number;
     photo_url: string;
 }
 
-interface DeliveryOrderFormValues {
+interface StockpileDeliveryFormValues {
     sales_order_id: string;
     product_name_sj: string;
     truck_plate?: string;
     ticket_number?: string;
+    type_blending?: 'NONE' | 'BLENDING TUMPUK' | 'BLENDING BAWAH' | null;
+    gross_weight?: number;
+    tare_weight?: number;
+    net_weight?: number;
     items: DeliveryOrderItemFormValue[];
 }
 
-interface DeliveryOrderFormProps {
+interface StockpileDeliveryFormProps {
     open: boolean;
     onClose: () => void;
     deliveryOrder: any | null; // Header record when editing
@@ -66,7 +73,7 @@ interface DeliveryOrderFormProps {
     deliveryType: 'DIRECT' | 'STOCKPILE';
 }
 
-// Sub-component for individual truck rows to manage its own vessel/shipment fetching dynamically
+// Sub-component for individual truck rows
 interface DeliveryOrderItemRowProps {
     index: number;
     control: any;
@@ -77,7 +84,6 @@ interface DeliveryOrderItemRowProps {
     fieldsLength: number;
     internalProducts: MasterProduct[];
     productionTypes: any[];
-    blendingTypes: any[];
     deliveryType: 'DIRECT' | 'STOCKPILE';
     mode: 'light' | 'dark';
     scanningIndex: number | null;
@@ -96,7 +102,6 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
     fieldsLength,
     internalProducts,
     productionTypes,
-    blendingTypes,
     deliveryType,
     mode,
     scanningIndex,
@@ -132,7 +137,6 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                 setShipments(data);
                 
                 if (data.length === 1) {
-                    // Exactly 1 shipment found, auto-select it
                     setValue(`items.${index}.shipment_id`, data[0].id);
                     setValue(`items.${index}.vessel_name`, data[0].vessel_name || '');
                 } else if (data.length === 0) {
@@ -140,7 +144,6 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                     setValue(`items.${index}.shipment_id`, '');
                     setValue(`items.${index}.vessel_name`, '');
                 } else {
-                    // Multiple found. Clear selection if current value is invalid
                     const currentVal = getValues(`items.${index}.shipment_id`);
                     if (currentVal && !data.some(s => s.id === currentVal)) {
                         setValue(`items.${index}.shipment_id`, '');
@@ -173,6 +176,15 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
     const tare = watch(`items.${index}.tare_weight`) || 0;
     const net = Math.max(0, gross - tare);
     const photoUrl = watch(`items.${index}.photo_url`);
+
+    // Calculate produk_net dynamically for row display
+    let produkNet = net;
+    if (index > 0) {
+        const prevGross = watch(`items.${index - 1}.gross_weight`) || 0;
+        const prevTare = watch(`items.${index - 1}.tare_weight`) || 0;
+        const prevNet = Math.max(0, prevGross - prevTare);
+        produkNet = net - prevNet;
+    }
 
     return (
         <Card
@@ -277,6 +289,27 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                         />
                     </Grid>
 
+                    {/* Add ticket_number inside the detail row card */}
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <Controller
+                            name={`items.${index}.ticket_number`}
+                            control={control}
+                            rules={{ required: true }}
+                            render={({ field: textField }) => (
+                                <TextField
+                                    {...textField}
+                                    label="Nomor Ticket"
+                                    fullWidth
+                                    size="small"
+                                    placeholder="e.g. T-12345"
+                                    onChange={(e) => textField.onChange(e.target.value.toUpperCase())}
+                                    error={!!errors?.items?.[index]?.ticket_number}
+                                    helperText={errors?.items?.[index]?.ticket_number ? 'Wajib diisi' : ''}
+                                />
+                            )}
+                        />
+                    </Grid>
+
                     <Grid size={{ xs: 12, md: 4 }}>
                         <Controller
                             name={`items.${index}.type_production_id`}
@@ -300,28 +333,6 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                         />
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Controller
-                            name={`items.${index}.blending_id`}
-                            control={control}
-                            render={({ field: selectField }) => (
-                                <TextField
-                                    {...selectField}
-                                    select
-                                    label="Blending"
-                                    fullWidth
-                                    size="small"
-                                >
-                                    <MenuItem value=""><em>Tidak ada</em></MenuItem>
-                                    {blendingTypes.map(b => (
-                                        <MenuItem key={b.id} value={b.id}>
-                                            {b.nama_blending}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                            )}
-                        />
-                    </Grid>
 
                     <Grid size={{ xs: 12, md: 4 }}>
                         <Controller
@@ -371,12 +382,21 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                         />
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 2 }}>
                         <Box sx={{ bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)', p: 1, borderRadius: 2, textAlign: 'center', border: '1px solid rgba(0, 0, 0, 0.1)' }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>Netto (Kg)</Typography>
-                            <Typography variant="subtitle1" color="primary" fontWeight="bold" sx={{ mt: -0.5 }}>
-                                {net.toLocaleString('id-ID')}
-                            </Typography>
+                             <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>Netto (Kg)</Typography>
+                             <Typography variant="subtitle1" color="primary" fontWeight="bold" sx={{ mt: -0.5 }}>
+                                 {net.toLocaleString('id-ID')}
+                             </Typography>
+                        </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 2 }}>
+                        <Box sx={{ bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)', p: 1, borderRadius: 2, textAlign: 'center', border: '1px solid rgba(0, 0, 0, 0.1)' }}>
+                             <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>Produk Net (Kg)</Typography>
+                             <Typography variant="subtitle1" color={produkNet < 0 ? 'error.main' : 'secondary.main'} fontWeight="bold" sx={{ mt: -0.5 }}>
+                                 {produkNet.toLocaleString('id-ID')}
+                             </Typography>
                         </Box>
                     </Grid>
 
@@ -431,7 +451,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
     );
 };
 
-const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
+const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
     open,
     onClose,
     deliveryOrder,
@@ -445,7 +465,6 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
     const [salesOrders, setSalesOrders] = useState<SalesOrderDetailed[]>([]);
     const [internalProducts, setInternalProducts] = useState<MasterProduct[]>([]);
     const [productionTypes, setProductionTypes] = useState<any[]>([]);
-    const [blendingTypes, setBlendingTypes] = useState<any[]>([]);
     
     // UI Loading / Submitting States
     const [loadingData, setLoadingData] = useState(false);
@@ -454,16 +473,25 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
     const [scanningIndex, setScanningIndex] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // Dynamic state for validated trucks
+    const [trukList, setTrukList] = useState<any[]>([]);
+    const [weightError, setWeightError] = useState<string | null>(null);
+
     // Selected Sales Order Info
     const [selectedCompany, setSelectedCompany] = useState<any>(null);
     const [selectedCustomerName, setSelectedCustomerName] = useState<string>('');
+    const [isBlendingManuallyEdited, setIsBlendingManuallyEdited] = useState(false);
 
-    const { control, handleSubmit, watch, setValue, reset, getValues, formState: { errors } } = useForm<DeliveryOrderFormValues>({
+    const { control, handleSubmit, watch, setValue, getValues, reset, formState: { errors } } = useForm<StockpileDeliveryFormValues>({
         defaultValues: {
             sales_order_id: '',
             product_name_sj: '',
             truck_plate: '',
             ticket_number: '',
+            type_blending: 'NONE',
+            gross_weight: 0,
+            tare_weight: 0,
+            net_weight: 0,
             items: [
                 {
                     internal_product_id: '',
@@ -472,6 +500,7 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                     type_production_id: '',
                     blending_id: '',
                     truck_plate: '',
+                    ticket_number: '',
                     gross_weight: 0,
                     tare_weight: 0,
                     net_weight: 0,
@@ -487,23 +516,21 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
     });
 
     const selectedSOId = watch('sales_order_id');
-    const watchItems = watch('items');
+    const watchItems = useWatch({ control, name: 'items' }) || [];
 
     // Load static dropdown lists
     useEffect(() => {
         const loadDropdowns = async () => {
             try {
                 setLoadingData(true);
-                const [orders, rawProducts, prodTypes, blendTypes] = await Promise.all([
+                const [orders, rawProducts, prodTypes] = await Promise.all([
                     deliveryService.getActiveSalesOrders(),
                     deliveryService.getInternalProducts(),
-                    deliveryService.getProductionTypes(),
-                    deliveryService.getBlendingTypes()
+                    deliveryService.getProductionTypes()
                 ]);
                 setSalesOrders(orders);
                 setInternalProducts(rawProducts);
                 setProductionTypes(prodTypes);
-                setBlendingTypes(blendTypes);
             } catch (err) {
                 console.error('Error loading form metadata:', err);
                 setError('Gagal memuat data master untuk form.');
@@ -530,6 +557,10 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                         product_name_sj: deliveryOrder.published_product_name || '',
                         truck_plate: deliveryOrder.truck_plate || '',
                         ticket_number: deliveryOrder.ticket_number || '',
+                        type_blending: deliveryOrder.type_blending || 'NONE',
+                        gross_weight: Number(deliveryOrder.gross_weight) || 0,
+                        tare_weight: Number(deliveryOrder.tare_weight) || 0,
+                        net_weight: Number(deliveryOrder.net_weight) || 0,
                         items: itemsData.map(item => ({
                             id: item.id,
                             internal_product_id: item.internal_product_id || '',
@@ -538,12 +569,16 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                             type_production_id: item.type_production_id || '',
                             blending_id: item.blending_id || '',
                             truck_plate: item.truck_plate || '',
+                            ticket_number: item.ticket_number || '',
                             gross_weight: Number(item.gross_weight) || 0,
                             tare_weight: Number(item.tare_weight) || 0,
                             net_weight: Number(item.net_weight) || 0,
+                            produk_net: Number(item.produk_net) || 0,
                             photo_url: item.photo_url || ''
                         }))
                     });
+
+                    setIsBlendingManuallyEdited(true);
 
                     // Set Customer and Company manually since the SO selection effect won't fire if the SO isn't in active lists
                     setSelectedCustomerName(deliveryOrder.customer_name || '');
@@ -563,6 +598,10 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                     product_name_sj: '',
                     truck_plate: '',
                     ticket_number: '',
+                    type_blending: 'NONE',
+                    gross_weight: 0,
+                    tare_weight: 0,
+                    net_weight: 0,
                     items: [
                         {
                             internal_product_id: '',
@@ -571,6 +610,7 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                             type_production_id: '',
                             blending_id: '',
                             truck_plate: '',
+                            ticket_number: '',
                             gross_weight: 0,
                             tare_weight: 0,
                             net_weight: 0,
@@ -580,6 +620,7 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                 });
                 setSelectedCustomerName('');
                 setSelectedCompany(null);
+                setIsBlendingManuallyEdited(false);
             }
         };
 
@@ -612,6 +653,85 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
             fetchCompany();
         }
     }, [selectedSOId, salesOrders, setValue, deliveryOrder]);
+
+    // Effect to calculate produk_net, validation logic, auto-blending types, and header mirroring
+    useEffect(() => {
+        if (!watchItems || watchItems.length === 0) {
+            setTrukList([]);
+            setWeightError(null);
+            return;
+        }
+
+        let hasError = false;
+        const newTrukList = watchItems.map((item, index) => {
+            const currentNet = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
+            let calculatedProdukNet = currentNet;
+
+            if (index > 0) {
+                const prevGross = Number(watchItems[index - 1]?.gross_weight) || 0;
+                const prevTare = Number(watchItems[index - 1]?.tare_weight) || 0;
+                const prevNet = Math.max(0, prevGross - prevTare);
+                calculatedProdukNet = currentNet - prevNet;
+                if (calculatedProdukNet < 0) {
+                    hasError = true;
+                }
+            }
+
+            return {
+                ...item,
+                net_weight: currentNet,
+                produk_net: calculatedProdukNet
+            };
+        });
+
+        setTrukList(newTrukList);
+
+        if (hasError) {
+            setWeightError("Urutan timbangan truk salah! Produk Net negatif.");
+        } else {
+            setWeightError(null);
+        }
+
+        // Blending type logic: force NONE if <= 1 truck, otherwise auto-calculate if not manually edited
+        if (newTrukList.length <= 1) {
+            setValue('type_blending', 'NONE');
+        } else if (!isBlendingManuallyEdited) {
+            const calculateTypeBlending = (list: any[]) => {
+                if (list.length === 2) {
+                    const t1 = list[0]?.produk_net || 0;
+                    const t2 = list[1]?.produk_net || 0;
+                    if (t1 < 7000 || t2 < 7000) {
+                        return 'BLENDING TUMPUK';
+                    } else {
+                        return 'BLENDING BAWAH';
+                    }
+                }
+                return 'BLENDING BAWAH';
+            };
+            const blendingVal = calculateTypeBlending(newTrukList);
+            setValue('type_blending', blendingVal);
+        }
+
+        // Header Mirroring: always update header fields with last truck values
+        if (newTrukList.length > 0) {
+            const lastItem = newTrukList[newTrukList.length - 1];
+            if (lastItem.truck_plate !== undefined) {
+                setValue('truck_plate', lastItem.truck_plate.trim().toUpperCase());
+            }
+            if (lastItem.ticket_number !== undefined) {
+                setValue('ticket_number', lastItem.ticket_number.trim().toUpperCase());
+            }
+            if (lastItem.gross_weight !== undefined) {
+                setValue('gross_weight', Number(lastItem.gross_weight) || 0);
+            }
+            if (lastItem.tare_weight !== undefined) {
+                setValue('tare_weight', Number(lastItem.tare_weight) || 0);
+            }
+            if (lastItem.net_weight !== undefined) {
+                setValue('net_weight', Number(lastItem.net_weight) || 0);
+            }
+        }
+    }, [watchItems, setValue, isBlendingManuallyEdited]);
 
     // File to base64 helper
     const fileToBase64 = (file: File): Promise<string> => {
@@ -651,6 +771,10 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                 }
 
                 if (data.truck_plate) setValue(`items.${index}.truck_plate`, data.truck_plate.toUpperCase());
+                const ocrTicketNumber = data.ticket_number || data.ticket_no;
+                if (ocrTicketNumber) {
+                    setValue(`items.${index}.ticket_number`, String(ocrTicketNumber).toUpperCase());
+                }
                 if (data.gross_weight) {
                     const grossVal = Number(data.gross_weight);
                     setValue(`items.${index}.gross_weight`, grossVal);
@@ -673,13 +797,25 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
     };
 
     // Form onSubmit
-    const onSubmit = async (data: DeliveryOrderFormValues) => {
+    const onSubmit = async (data: StockpileDeliveryFormValues) => {
         setError(null);
         setSubmitting(true);
+
+        if (weightError) {
+            setError(weightError);
+            setSubmitting(false);
+            return;
+        }
 
         const trimmedProductNameSj = data.product_name_sj?.trim();
         if (!trimmedProductNameSj) {
             setError('Nama Produk (untuk SJ) wajib diisi');
+            setSubmitting(false);
+            return;
+        }
+
+        if (containsHtmlOrScript(trimmedProductNameSj)) {
+            setError('Input mengandung karakter tidak valid atau script berbahaya');
             setSubmitting(false);
             return;
         }
@@ -698,13 +834,18 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                 setSubmitting(false);
                 return;
             }
-            if (deliveryType === 'DIRECT' && !item.shipment_id) {
-                setError(`Vessel/Tongkang untuk Truk #${i + 1} wajib dipilih.`);
+            if (!item.truck_plate?.trim()) {
+                setError(`No. Polisi untuk Truk #${i + 1} wajib diisi.`);
                 setSubmitting(false);
                 return;
             }
-            if (!item.truck_plate?.trim()) {
-                setError(`No. Polisi untuk Truk #${i + 1} wajib diisi.`);
+            if (!item.ticket_number?.trim()) {
+                setError(`Nomor Ticket untuk Truk #${i + 1} wajib diisi.`);
+                setSubmitting(false);
+                return;
+            }
+            if (containsHtmlOrScript(item.truck_plate) || containsHtmlOrScript(item.ticket_number)) {
+                setError(`Input pada Truk #${i + 1} mengandung karakter tidak valid atau script berbahaya.`);
                 setSubmitting(false);
                 return;
             }
@@ -713,6 +854,19 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                 setSubmitting(false);
                 return;
             }
+        }
+
+        // Validate header plate and ticket number from the last truck
+        const lastDetailItem = data.items[data.items.length - 1] || {};
+        if (!lastDetailItem.truck_plate?.trim()) {
+            setError('No. Polisi (Induk) wajib terisi (dari truk terakhir).');
+            setSubmitting(false);
+            return;
+        }
+        if (!lastDetailItem.ticket_number?.trim()) {
+            setError('Nomor Ticket (Induk) wajib terisi (dari truk terakhir).');
+            setSubmitting(false);
+            return;
         }
 
         // Fetch SO company id details
@@ -741,28 +895,49 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
         }
 
         try {
-            const itemsPayload = (data.items || []).map(item => ({
-                ...item,
-                truck_plate: item.truck_plate?.trim().toUpperCase() || '',
-                type_production_id: item.type_production_id || null,
-                blending_id: item.blending_id || null
-            }));
+            // Re-calculate sequential net weights at submission time to ensure correct database values
+            const itemsPayload = data.items.map((item, index) => {
+                const currentNet = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
+                let calculatedProdukNet = currentNet;
 
-            const totalGrossWeight = itemsPayload.reduce((sum, item) => sum + (Number(item.gross_weight) || 0), 0);
-            const totalTareWeight = itemsPayload.reduce((sum, item) => sum + (Number(item.tare_weight) || 0), 0);
-            const totalNetWeight = itemsPayload.reduce((sum, item) => sum + Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0)), 0);
+                if (index > 0) {
+                    const prevGross = Number(data.items[index - 1]?.gross_weight) || 0;
+                    const prevTare = Number(data.items[index - 1]?.tare_weight) || 0;
+                    const prevNet = Math.max(0, prevGross - prevTare);
+                    calculatedProdukNet = currentNet - prevNet;
+                }
 
+                return {
+                    id: item.id,
+                    internal_product_id: item.internal_product_id || '',
+                    shipment_id: item.shipment_id || '',
+                    vessel_name: item.vessel_name || '',
+                    type_production_id: item.type_production_id || null,
+                    blending_id: null,
+                    truck_plate: item.truck_plate?.trim().toUpperCase() || '',
+                    ticket_number: item.ticket_number?.trim().toUpperCase() || '',
+                    gross_weight: Number(item.gross_weight) || 0,
+                    tare_weight: Number(item.tare_weight) || 0,
+                    net_weight: currentNet,
+                    produk_net: calculatedProdukNet,
+                    photo_url: item.photo_url || ''
+                };
+            });
+
+            // Header weights and values are ALWAYS populated from the last item in the detail list
+            const lastItem = itemsPayload[itemsPayload.length - 1] || {};
             const headerPayload = {
                 sales_order_id: data.sales_order_id,
                 published_product_name: trimmedProductNameSj,
                 company_id: so.company_id,
                 created_by: loggedInProfile?.uuid || null,
                 delivery_type: deliveryType,
-                truck_plate: deliveryType === 'STOCKPILE' ? data.truck_plate?.trim() || null : null,
-                ticket_number: deliveryType === 'STOCKPILE' ? data.ticket_number?.trim() || null : null,
-                gross_weight: totalGrossWeight,
-                tare_weight: totalTareWeight,
-                net_weight: totalNetWeight
+                truck_plate: lastItem.truck_plate || null,
+                ticket_number: lastItem.ticket_number || null,
+                gross_weight: Number(lastItem.gross_weight) || 0,
+                tare_weight: Number(lastItem.tare_weight) || 0,
+                net_weight: Number(lastItem.net_weight) || 0,
+                type_blending: (data.type_blending || 'NONE') as 'NONE' | 'BLENDING TUMPUK' | 'BLENDING BAWAH' | null
             };
 
             let savedHeader;
@@ -784,11 +959,8 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
         }
     };
 
-    // Calculate total net weight displayed in the form summary
-    const totalNetWeight = watchItems?.reduce((sum, item) => {
-        const net = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
-        return sum + net;
-    }, 0) || 0;
+    // Calculate total accumulated netto weight displayed in the form summary (sum of all produk_net, which is equivalent to last truck's net)
+    const totalNetWeight = trukList?.reduce((sum, item) => sum + (Number(item.produk_net) || 0), 0) || 0;
 
     return (
         <Dialog
@@ -809,7 +981,7 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
         >
             <Box component="form" onSubmit={handleSubmit(onSubmit)}>
                 <DialogTitle sx={{ fontWeight: 'bold', borderBottom: '1px solid', borderColor: 'divider' }}>
-                    {deliveryOrder ? 'Edit Surat Jalan' : 'Buat Surat Jalan Baru'} ({deliveryType === 'DIRECT' ? 'Pengiriman Langsung' : 'Pengiriman Stockpile'})
+                    {deliveryOrder ? 'Edit Surat Jalan' : 'Buat Surat Jalan Baru'} (Pengiriman Stockpile)
                 </DialogTitle>
                 <DialogContent sx={{ mt: 2, pb: 1, maxHeight: '70vh', overflowY: 'auto' }}>
                     {loadingData || loadingItems ? (
@@ -818,10 +990,10 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                         </Box>
                     ) : (
                         <Grid container spacing={3}>
-                            {(error || Object.keys(errors).length > 0) && (
+                            {(error || weightError || Object.keys(errors).length > 0) && (
                                 <Grid size={12}>
                                     <Alert severity="error">
-                                        {error || "Ada kesalahan pengisian form. Silakan periksa kembali semua inputan Anda."}
+                                        {error || weightError || "Ada kesalahan pengisian form. Silakan periksa kembali semua inputan Anda."}
                                     </Alert>
                                 </Grid>
                             )}
@@ -918,43 +1090,115 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                                         mb: 1
                                     }}>
                                         <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>
-                                            Informasi Master / Induk (Pengiriman Stockpile)
+                                            Informasi Master / Induk (Pengiriman Stock Pile)
                                         </Typography>
                                         <Grid container spacing={2}>
-                                            <Grid size={{ xs: 12, md: 6 }}>
+                                            <Grid size={{ xs: 12, md: 4 }}>
                                                 <Controller
                                                     name="truck_plate"
                                                     control={control}
-                                                    rules={{ required: 'No Polisi (Induk) wajib diisi' }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             label="No Polisi (Induk)"
                                                             fullWidth
-                                                            placeholder="e.g. B 1234 XY atau MULTIPLE"
-                                                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                                                            error={!!errors.truck_plate}
-                                                            helperText={errors.truck_plate?.message}
+                                                            disabled
+                                                            placeholder="No Polisi"
                                                             size="small"
+                                                            value={field.value || ''}
                                                         />
                                                     )}
                                                 />
                                             </Grid>
-                                            <Grid size={{ xs: 12, md: 6 }}>
+                                            <Grid size={{ xs: 12, md: 4 }}>
                                                 <Controller
                                                     name="ticket_number"
                                                     control={control}
-                                                    rules={{ required: 'Nomor Ticket (Induk) wajib diisi' }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             label="Nomor Ticket (Induk)"
                                                             fullWidth
-                                                            placeholder="e.g. T-12345 atau MULTIPLE"
-                                                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                                                            error={!!errors.ticket_number}
-                                                            helperText={errors.ticket_number?.message}
+                                                            disabled
+                                                            placeholder="Nomor Ticket"
                                                             size="small"
+                                                            value={field.value || ''}
+                                                        />
+                                                    )}
+                                                />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 4 }}>
+                                                <Controller
+                                                    name="type_blending"
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <TextField
+                                                            {...field}
+                                                            select
+                                                            label="Tipe Blending"
+                                                            fullWidth
+                                                            disabled={trukList.length <= 1}
+                                                            size="small"
+                                                            value={field.value || 'NONE'}
+                                                            onChange={(e) => {
+                                                                field.onChange(e);
+                                                                setIsBlendingManuallyEdited(true);
+                                                            }}
+                                                        >
+                                                            <MenuItem value="NONE">NONE</MenuItem>
+                                                            <MenuItem value="BLENDING TUMPUK">BLENDING TUMPUK</MenuItem>
+                                                            <MenuItem value="BLENDING BAWAH">BLENDING BAWAH</MenuItem>
+                                                        </TextField>
+                                                    )}
+                                                />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 4 }}>
+                                                <Controller
+                                                    name="gross_weight"
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <TextField
+                                                            {...field}
+                                                            type="number"
+                                                            label="Total Gross"
+                                                            fullWidth
+                                                            disabled
+                                                            size="small"
+                                                            value={field.value !== undefined ? field.value : ''}
+                                                        />
+                                                    )}
+                                                />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 4 }}>
+                                                <Controller
+                                                    name="tare_weight"
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <TextField
+                                                            {...field}
+                                                            type="number"
+                                                            label="Total Tare"
+                                                            fullWidth
+                                                            disabled
+                                                            size="small"
+                                                            value={field.value !== undefined ? field.value : ''}
+                                                        />
+                                                    )}
+                                                />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 4 }}>
+                                                <Controller
+                                                    name="net_weight"
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <TextField
+                                                            {...field}
+                                                            type="number"
+                                                            label="Total Netto"
+                                                            fullWidth
+                                                            disabled
+                                                            size="small"
+                                                            value={field.value !== undefined ? field.value : ''}
                                                         />
                                                     )}
                                                 />
@@ -981,6 +1225,7 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                                             type_production_id: '',
                                             blending_id: '',
                                             truck_plate: '',
+                                            ticket_number: '',
                                             gross_weight: 0,
                                             tare_weight: 0,
                                             net_weight: 0,
@@ -1009,7 +1254,6 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                                             fieldsLength={fields.length}
                                             internalProducts={internalProducts}
                                             productionTypes={productionTypes}
-                                            blendingTypes={blendingTypes}
                                             deliveryType={deliveryType}
                                             mode={mode}
                                             scanningIndex={scanningIndex}
@@ -1024,7 +1268,7 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                             {/* Weight Summary Footer */}
                             <Grid size={12}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: mode === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.05)', p: 2, borderRadius: '12px', border: '1px solid', borderColor: 'primary.main' }}>
-                                    <Typography variant="subtitle1" fontWeight="bold">Total Netto Akumulasi:</Typography>
+                                    <Typography variant="subtitle1" fontWeight="bold">Total Netto:</Typography>
                                     <Typography variant="h6" color="primary" fontWeight="bold">
                                         {totalNetWeight.toLocaleString('id-ID')} Kg ({(totalNetWeight / 1000).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT)
                                     </Typography>
@@ -1046,7 +1290,7 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
                     <Button
                         type="submit"
                         variant="contained"
-                        disabled={submitting || scanningIndex !== null || loadingData || loadingItems}
+                        disabled={submitting || scanningIndex !== null || loadingData || loadingItems || !!weightError}
                         startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                         sx={{
                             borderRadius: '20px',
@@ -1063,5 +1307,5 @@ const DeliveryOrderForm: React.FC<DeliveryOrderFormProps> = ({
     );
 };
 
-export default DeliveryOrderForm;
-export type { DeliveryOrderFormValues, DeliveryOrderItemFormValue };
+export default StockpileDeliveryForm;
+export type { StockpileDeliveryFormValues };

@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { containsHtmlOrScript } from '../lib/sanitizer';
 
 const Login = () => {
     const { t } = useTranslation();
@@ -41,6 +42,12 @@ const Login = () => {
 
         if (!trimmedEmail || !trimmedPassword) {
             setError('Surel dan kata sandi wajib diisi');
+            setLoading(false);
+            return;
+        }
+
+        if (containsHtmlOrScript(trimmedEmail) || containsHtmlOrScript(trimmedPassword)) {
+            setError('Input mengandung karakter tidak valid atau script berbahaya');
             setLoading(false);
             return;
         }

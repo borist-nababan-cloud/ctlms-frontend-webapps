@@ -17,6 +17,7 @@ import { masterService } from '../../lib/masterService';
 import type { SalesOrder, MasterPartner, MasterProduct, MasterCompany } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabaseClient';
+import { containsHtmlOrScript } from '../../lib/sanitizer';
 
 const formatNumberStr = (value: number) => {
     return new Intl.NumberFormat('id-ID').format(value);
@@ -171,6 +172,12 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ salesOrderId, onSuccess
 
         if (!trimmedProductName) {
             setError('Nama Produk wajib diisi');
+            setLoading(false);
+            return;
+        }
+
+        if (containsHtmlOrScript(trimmedProductName) || containsHtmlOrScript(trimmedNotes)) {
+            setError('Input mengandung karakter tidak valid atau script berbahaya');
             setLoading(false);
             return;
         }

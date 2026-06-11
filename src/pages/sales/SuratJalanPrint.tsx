@@ -23,9 +23,22 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
         const items: any[] = deliveryOrder.items || [];
         
         // Sum weights
-        const totalGross = items.reduce((sum: number, item: any) => sum + (Number(item.gross_weight) || 0), 0);
-        const totalTare = items.reduce((sum: number, item: any) => sum + (Number(item.tare_weight) || 0), 0);
-        const totalNetto = items.reduce((sum: number, item: any) => sum + (Number(item.net_weight) || 0), 0);
+        const isStockpile = deliveryOrder.delivery_type === 'STOCKPILE';
+        const totalGross = deliveryOrder.gross_weight !== null && deliveryOrder.gross_weight !== undefined
+            ? Number(deliveryOrder.gross_weight)
+            : (isStockpile && items.length > 0
+                ? Number(items[items.length - 1].gross_weight || 0)
+                : items.reduce((sum: number, item: any) => sum + (Number(item.gross_weight) || 0), 0));
+        const totalTare = deliveryOrder.tare_weight !== null && deliveryOrder.tare_weight !== undefined
+            ? Number(deliveryOrder.tare_weight)
+            : (isStockpile && items.length > 0
+                ? Number(items[items.length - 1].tare_weight || 0)
+                : items.reduce((sum: number, item: any) => sum + (Number(item.tare_weight) || 0), 0));
+        const totalNetto = deliveryOrder.net_weight !== null && deliveryOrder.net_weight !== undefined
+            ? Number(deliveryOrder.net_weight)
+            : (isStockpile && items.length > 0
+                ? Number(items[items.length - 1].net_weight || 0)
+                : items.reduce((sum: number, item: any) => sum + (Number(item.net_weight) || 0), 0));
 
         return (
             <div ref={ref} style={{
@@ -135,7 +148,7 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                                 <th style={{ textAlign: 'left', padding: '4px 0' }}>PRODUK INTERNAL</th>
                                 <th style={{ textAlign: 'right', padding: '4px 0', width: '80px' }}>GROSS (KG)</th>
                                 <th style={{ textAlign: 'right', padding: '4px 0', width: '80px' }}>TARE (KG)</th>
-                                <th style={{ textAlign: 'right', padding: '4px 0', width: '90px' }}>NETTO (KG)</th>
+                                <th style={{ textAlign: 'right', padding: '4px 0', width: '90px' }}>{isStockpile ? 'PRODUK NET (KG)' : 'NETTO (KG)'}</th>
                                 <th style={{ textAlign: 'left', padding: '4px 0', width: '100px', paddingLeft: '15px' }}>KET</th>
                             </tr>
                         </thead>
@@ -148,7 +161,7 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                                         <td style={{ padding: '3px 0' }}>{item.internal_product?.name || '-'}</td>
                                         <td style={{ padding: '3px 0', textAlign: 'right' }}>{Number(item.gross_weight || 0).toLocaleString('id-ID')}</td>
                                         <td style={{ padding: '3px 0', textAlign: 'right' }}>{Number(item.tare_weight || 0).toLocaleString('id-ID')}</td>
-                                        <td style={{ padding: '3px 0', textAlign: 'right', fontWeight: 'bold' }}>{Number(item.net_weight || 0).toLocaleString('id-ID')}</td>
+                                        <td style={{ padding: '3px 0', textAlign: 'right', fontWeight: 'bold' }}>{Number(isStockpile && item.produk_net !== undefined && item.produk_net !== null ? item.produk_net : item.net_weight || 0).toLocaleString('id-ID')}</td>
                                         <td style={{ padding: '3px 0', paddingLeft: '15px' }}>
                                             {item.type_production?.nama_type || item.blending?.nama_blending || '-'}
                                         </td>

@@ -8,7 +8,7 @@ import {
     Alert,
     IconButton,
     Tooltip,
-    LinearProgress,
+    CircularProgress,
     Snackbar
 } from '@mui/material';
 import { Edit as EditIcon, Print as PrintIcon, Add as AddIcon } from '@mui/icons-material';
@@ -350,7 +350,11 @@ const DirectDelivery: React.FC = () => {
 
     return (
         <Container maxWidth="xl" sx={{ py: 3 }}>
-            {loading && <LinearProgress sx={{ mb: 2, borderRadius: '4px' }} />}
+            {loading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                    <CircularProgress />
+                </Box>
+            )}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                     Pengiriman Langsung

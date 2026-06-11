@@ -8,7 +8,7 @@ import {
     Alert,
     IconButton,
     Tooltip,
-    LinearProgress,
+    CircularProgress,
     Snackbar
 } from '@mui/material';
 import { Edit as EditIcon, Print as PrintIcon, Add as AddIcon } from '@mui/icons-material';
@@ -24,7 +24,7 @@ import { masterService } from '../../lib/masterService';
 import { supabase } from '../../lib/supabaseClient';
 import type { SalesOrderDetailed, DeliveryOrder, MasterCompany } from '../../types/supabase';
 import SuratJalanPrint from './SuratJalanPrint';
-import DeliveryOrderForm from './DeliveryOrderForm';
+import StockpileDeliveryForm from './StockpileDeliveryForm';
 
 const StockpileDelivery: React.FC = () => {
     const { mode } = useColorMode();
@@ -345,7 +345,11 @@ const StockpileDelivery: React.FC = () => {
 
     return (
         <Container maxWidth="xl" sx={{ py: 3 }}>
-            {loading && <LinearProgress sx={{ mb: 2, borderRadius: '4px' }} />}
+            {loading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                    <CircularProgress />
+                </Box>
+            )}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                     Pengiriman Stock Pile
@@ -373,7 +377,7 @@ const StockpileDelivery: React.FC = () => {
             </Box>
 
             {/* Reusable Form Dialog */}
-            <DeliveryOrderForm
+            <StockpileDeliveryForm
                 open={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 deliveryOrder={editingDO}

@@ -24,6 +24,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useColorMode } from '../../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { masterService } from '../../lib/masterService';
+import { containsHtmlOrScript } from '../../lib/sanitizer';
 import type { MasterBlending } from '../../types/supabase';
 
 // Helper to format currency
@@ -76,7 +77,7 @@ export default function MasterBlendingPage() {
             setData(res);
         } catch (err: any) {
             console.error('Error fetching blending data:', err);
-            setError(err.message || 'Gagal memuat data');
+            setError('Gagal memuat data dari server.');
         } finally {
             setLoading(false);
         }
@@ -111,6 +112,11 @@ export default function MasterBlendingPage() {
     };
 
     const onSubmit = async (formValues: BlendingFormValues) => {
+        if (containsHtmlOrScript(formValues.nama_blending)) {
+            setError('Input mengandung karakter tidak valid atau script berbahaya');
+            return;
+        }
+
         try {
             setSaving(true);
             setError(null);
@@ -132,7 +138,7 @@ export default function MasterBlendingPage() {
             fetchData();
         } catch (err: any) {
             console.error('Error saving blending configurations:', err);
-            setError(err.message || 'Gagal menyimpan data');
+            setError('Gagal menyimpan data ke server.');
         } finally {
             setSaving(false);
         }
@@ -160,7 +166,7 @@ export default function MasterBlendingPage() {
             fetchData();
         } catch (err: any) {
             console.error('Error deleting configuration:', err);
-            setError(err.message || 'Gagal menghapus data');
+            setError('Gagal menghapus data dari server.');
         } finally {
             setSaving(false);
         }

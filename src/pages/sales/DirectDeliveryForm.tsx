@@ -21,7 +21,6 @@ import {
     Tooltip
 } from '@mui/material';
 import {
-    Add as AddIcon,
     Delete as DeleteIcon,
     PhotoCamera,
     Image as ImageIcon,
@@ -30,6 +29,7 @@ import {
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { containsHtmlOrScript } from '../../lib/sanitizer';
 import { useColorMode } from '../../context/ThemeContext';
 import { deliveryService } from '../../lib/deliveryService';
 import { masterService } from '../../lib/masterService';
@@ -435,7 +435,7 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
         }
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, remove } = useFieldArray({
         control,
         name: 'items'
     });
@@ -475,10 +475,8 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                 setError(null);
                 try {
                     const itemsData = await deliveryService.getDeliveryOrderItems(deliveryOrder.id);
-                    reset({
-                        sales_order_id: deliveryOrder.sales_order_id || '',
-                        product_name_sj: deliveryOrder.published_product_name || '',
-                        items: itemsData.map(item => ({
+                    const itemsMapped = itemsData.length > 0 
+                        ? itemsData.map(item => ({
                             id: item.id,
                             internal_product_id: item.internal_product_id || '',
                             shipment_id: item.shipment_id || '',
@@ -489,7 +487,22 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                             tare_weight: Number(item.tare_weight) || 0,
                             net_weight: Number(item.net_weight) || 0,
                             photo_url: item.photo_url || ''
-                        }))
+                          }))
+                        : [{
+                            internal_product_id: '',
+                            shipment_id: '',
+                            vessel_name: '',
+                            truck_plate: '',
+                            ticket_number: '',
+                            gross_weight: 0,
+                            tare_weight: 0,
+                            net_weight: 0,
+                            photo_url: ''
+                          }];
+                    reset({
+                        sales_order_id: deliveryOrder.sales_order_id || '',
+                        product_name_sj: deliveryOrder.published_product_name || '',
+                        items: itemsMapped
                     });
 
                     // Set Customer and Company manually since the SO selection effect won't fire if the SO isn't in active lists
@@ -632,6 +645,12 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
             return;
         }
 
+        if (containsHtmlOrScript(trimmedProductNameSj)) {
+            setError('Input mengandung karakter tidak valid atau script berbahaya');
+            setSubmitting(false);
+            return;
+        }
+
         if (!data.items || data.items.length === 0) {
             setError('Minimal harus menambahkan satu truk/item detail.');
             setSubmitting(false);
@@ -658,6 +677,11 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
             }
             if (!item.ticket_number?.trim()) {
                 setError(`Nomor Ticket untuk Truk #${i + 1} wajib diisi.`);
+                setSubmitting(false);
+                return;
+            }
+            if (containsHtmlOrScript(item.truck_plate) || containsHtmlOrScript(item.ticket_number)) {
+                setError(`Input pada Truk #${i + 1} mengandung karakter tidak valid atau script berbahaya.`);
                 setSubmitting(false);
                 return;
             }
@@ -867,27 +891,8 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                             <Grid size={12} sx={{ mt: 2 }}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                                        Daftar Truk (Detail)
+                                        Rincian Muatan Truk (Detail)
                                     </Typography>
-                                    <Button
-                                        variant="outlined"
-                                        size="small"
-                                        startIcon={<AddIcon />}
-                                        onClick={() => append({
-                                            internal_product_id: '',
-                                            shipment_id: '',
-                                            vessel_name: '',
-                                            truck_plate: '',
-                                            ticket_number: '',
-                                            gross_weight: 0,
-                                            tare_weight: 0,
-                                            net_weight: 0,
-                                            photo_url: ''
-                                        })}
-                                        sx={{ borderRadius: '20px', textTransform: 'none' }}
-                                    >
-                                        Tambah Truk
-                                    </Button>
                                 </Box>
                                 <Divider sx={{ mb: 2 }} />
                             </Grid>

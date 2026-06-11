@@ -22,6 +22,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useColorMode } from '../../context/ThemeContext';
 import { masterService } from '../../lib/masterService';
 import type { MasterCompany } from '../../types/supabase';
+import { containsHtmlOrScript } from '../../lib/sanitizer';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -66,7 +67,8 @@ const MasterCompanies = () => {
             const data = await masterService.getCompanies();
             setCompanies(data);
         } catch (err: any) {
-            setError(err.message);
+            console.error('Error fetching companies:', err);
+            setError('Gagal memuat data perusahaan dari sistem.');
         } finally {
             setLoading(false);
         }
@@ -221,6 +223,17 @@ const MasterCompanies = () => {
     };
 
     const onSubmit = async (data: Partial<MasterCompany>) => {
+        if (
+            containsHtmlOrScript(data.name) || containsHtmlOrScript(data.address1) ||
+            containsHtmlOrScript(data.address2) || containsHtmlOrScript(data.city) ||
+            containsHtmlOrScript(data.province) || containsHtmlOrScript(data.zipcode) ||
+            containsHtmlOrScript(data.pic_name) || containsHtmlOrScript(data.email) ||
+            containsHtmlOrScript(data.mobile) || containsHtmlOrScript(data.fixline)
+        ) {
+            setError('Input mengandung karakter tidak valid atau script berbahaya');
+            return;
+        }
+
         try {
             setError(null);
             setUploading(true);
@@ -265,7 +278,8 @@ const MasterCompanies = () => {
             setOpen(false);
             fetchCompanies();
         } catch (err: any) {
-            setError(err.message);
+            console.error('Error saving company:', err);
+            setError('Terjadi kesalahan pada sistem saat menyimpan data.');
         } finally {
             setUploading(false);
         }

@@ -21,6 +21,7 @@ import {
 import { useColorMode } from '../../context/ThemeContext';
 import { masterService } from '../../lib/masterService';
 import type { MasterProduct } from '../../types/supabase';
+import { containsHtmlOrScript } from '../../lib/sanitizer';
 
 const Products = () => {
     const { mode } = useColorMode();
@@ -109,6 +110,11 @@ const Products = () => {
 
         if (!trimmedSku || !trimmedName) {
             setDialogError('Kode SKU dan Nama Produk wajib diisi.');
+            return;
+        }
+
+        if (containsHtmlOrScript(trimmedSku) || containsHtmlOrScript(trimmedName)) {
+            setDialogError('Input mengandung karakter tidak valid atau script berbahaya');
             return;
         }
 

@@ -194,6 +194,7 @@ export interface DeliveryOrder {
     published_product_name?: string | null;
     internal_product_id?: string | null;
     delivery_type?: 'DIRECT' | 'STOCKPILE' | null;
+    type_blending?: 'NONE' | 'BLENDING TUMPUK' | 'BLENDING BAWAH' | null;
 }
 
 export interface DeliveryOrderItem {
@@ -210,6 +211,7 @@ export interface DeliveryOrderItem {
     photo_url: string | null;
     shipment_id: string | null; // uuid -> shipments
     vessel_name: string | null;
+    produk_net?: number | null;
 }
 
 export interface Database {

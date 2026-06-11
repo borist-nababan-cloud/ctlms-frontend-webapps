@@ -128,10 +128,12 @@ export const deliveryService = {
             sjNumber = await deliveryService.generateSjNumber(deliveryOrder.company_id);
         }
 
-        const totalNetWeight = (items || []).reduce((sum, item) => {
-            const net = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
-            return sum + net;
-        }, 0);
+        const totalNetWeight = deliveryOrder.net_weight !== undefined && deliveryOrder.net_weight !== null
+            ? deliveryOrder.net_weight
+            : (items || []).reduce((sum, item) => {
+                const net = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
+                return sum + net;
+            }, 0);
 
         const headerPayload = {
             ...deliveryOrder,
@@ -168,7 +170,8 @@ export const deliveryService = {
                     shipment_id: item.shipment_id || null,
                     vessel_name: item.vessel_name || null,
                     type_production_id: item.type_production_id || null,
-                    blending_id: item.blending_id || null
+                    blending_id: item.blending_id || null,
+                    produk_net: item.produk_net !== undefined && item.produk_net !== null ? Number(item.produk_net) : Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0))
                 };
             });
 
@@ -195,10 +198,12 @@ export const deliveryService = {
         deliveryOrder: Partial<DeliveryOrder>,
         items: any[]
     ): Promise<any> => {
-        const totalNetWeight = (items || []).reduce((sum, item) => {
-            const net = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
-            return sum + net;
-        }, 0);
+        const totalNetWeight = deliveryOrder.net_weight !== undefined && deliveryOrder.net_weight !== null
+            ? deliveryOrder.net_weight
+            : (items || []).reduce((sum, item) => {
+                const net = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
+                return sum + net;
+            }, 0);
 
         const headerPayload = {
             ...deliveryOrder,
@@ -241,7 +246,8 @@ export const deliveryService = {
                     shipment_id: item.shipment_id || null,
                     vessel_name: item.vessel_name || null,
                     type_production_id: item.type_production_id || null,
-                    blending_id: item.blending_id || null
+                    blending_id: item.blending_id || null,
+                    produk_net: item.produk_net !== undefined && item.produk_net !== null ? Number(item.produk_net) : Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0))
                 };
             });
 
@@ -318,7 +324,7 @@ export const deliveryService = {
                 company_name: doItem.company?.name || '-',
                 vessel_display: vesselDisplay,
                 internal_product_name: firstItem.internal_product?.name || '-',
-                net_weight: totalNetWeight,
+                net_weight: doItem.delivery_type === 'STOCKPILE' && doItem.net_weight !== null && doItem.net_weight !== undefined ? Number(doItem.net_weight) : totalNetWeight,
                 items: items
             };
         });
