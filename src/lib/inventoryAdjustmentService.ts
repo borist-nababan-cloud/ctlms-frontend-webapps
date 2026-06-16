@@ -72,7 +72,7 @@ export const inventoryAdjustmentService = {
                 master_products (
                     name
                 ),
-                user_profiles (
+                user_profiles!created_by (
                     real_name,
                     email
                 )
