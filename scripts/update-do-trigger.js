@@ -34,11 +34,11 @@ async function updateTrigger() {
             NEW.id,
             NEW.internal_product_id,
             'STOCKPILE',
-            -NEW.net_weight,
+            -COALESCE(NEW.produk_net, NEW.net_weight, 0),
             'SALES_OUT',
             NEW.do_id,
             v_company_id,
-            'DO Item Truck ' || NEW.truck_plate
+            'DO Item Truck ' || COALESCE(NEW.truck_plate, '')
           );
           RETURN NEW;
         ELSIF TG_OP = 'UPDATE' THEN
@@ -56,11 +56,11 @@ async function updateTrigger() {
             NEW.id,
             NEW.internal_product_id,
             'STOCKPILE',
-            -NEW.net_weight,
+            -COALESCE(NEW.produk_net, NEW.net_weight, 0),
             'SALES_OUT',
             NEW.do_id,
             v_company_id,
-            'DO Item Truck ' || NEW.truck_plate
+            'DO Item Truck ' || COALESCE(NEW.truck_plate, '')
           )
           ON CONFLICT (id) DO UPDATE SET
             product_id = EXCLUDED.product_id,

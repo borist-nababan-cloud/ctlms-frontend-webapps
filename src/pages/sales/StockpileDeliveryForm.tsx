@@ -24,18 +24,16 @@ import {
     Add as AddIcon,
     Delete as DeleteIcon,
     PhotoCamera,
-    Image as ImageIcon,
     Save as SaveIcon
 } from '@mui/icons-material';
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
-import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { containsHtmlOrScript } from '../../lib/sanitizer';
 import { useColorMode } from '../../context/ThemeContext';
 import { deliveryService } from '../../lib/deliveryService';
 import { masterService } from '../../lib/masterService';
-import { logisticsService } from '../../lib/logisticsService';
 import type { SalesOrderDetailed, Shipment, MasterProduct } from '../../types/supabase';
+import ScannerHub from '../../components/common/ScannerHub';
 
 interface DeliveryOrderItemFormValue {
     id?: string;
@@ -86,10 +84,10 @@ interface DeliveryOrderItemRowProps {
     productionTypes: any[];
     deliveryType: 'DIRECT' | 'STOCKPILE';
     mode: 'light' | 'dark';
-    scanningIndex: number | null;
     submitting: boolean;
-    handleScanTicket: (event: React.ChangeEvent<HTMLInputElement>, idx: number) => Promise<void>;
+    onOpenScanner: (idx: number) => void;
     errors: any;
+    isLocked: boolean;
 }
 
 const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
@@ -104,10 +102,10 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
     productionTypes,
     deliveryType,
     mode,
-    scanningIndex,
     submitting,
-    handleScanTicket,
-    errors
+    onOpenScanner,
+    errors,
+    isLocked
 }) => {
     // Watch the selected internal product for this row to fetch shipments
     const selectedProductId = useWatch({
@@ -204,7 +202,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                     </Typography>
                     {fieldsLength > 1 && (
                         <Tooltip title="Hapus Truk">
-                            <IconButton size="small" color="error" onClick={() => remove(index)}>
+                            <IconButton size="small" color="error" onClick={() => remove(index)} disabled={isLocked || submitting}>
                                 <DeleteIcon />
                             </IconButton>
                         </Tooltip>
@@ -223,6 +221,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                                     label="Produk Internal (Raw)"
                                     fullWidth
                                     size="small"
+                                    disabled={isLocked || submitting}
                                     error={!!errors?.items?.[index]?.internal_product_id}
                                     helperText={errors?.items?.[index]?.internal_product_id ? 'Wajib dipilih' : ''}
                                 >
@@ -250,7 +249,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                                         label="Pilih Vessel/Tongkang"
                                         fullWidth
                                         size="small"
-                                        disabled={loadingShipments || !selectedProductId}
+                                        disabled={loadingShipments || !selectedProductId || isLocked || submitting}
                                         error={!!errors?.items?.[index]?.shipment_id || !!shipmentError}
                                         helperText={shipmentError || (errors?.items?.[index]?.shipment_id ? 'Wajib dipilih' : '') || (loadingShipments ? 'Memuat...' : '')}
                                         onChange={(e) => {
@@ -281,6 +280,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                                     fullWidth
                                     size="small"
                                     placeholder="e.g. B 1234 XY"
+                                    disabled={isLocked || submitting}
                                     onChange={(e) => textField.onChange(e.target.value.toUpperCase())}
                                     error={!!errors?.items?.[index]?.truck_plate}
                                     helperText={errors?.items?.[index]?.truck_plate ? 'Wajib diisi' : ''}
@@ -302,6 +302,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                                     fullWidth
                                     size="small"
                                     placeholder="e.g. T-12345"
+                                    disabled={isLocked || submitting}
                                     onChange={(e) => textField.onChange(e.target.value.toUpperCase())}
                                     error={!!errors?.items?.[index]?.ticket_number}
                                     helperText={errors?.items?.[index]?.ticket_number ? 'Wajib diisi' : ''}
@@ -321,6 +322,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                                     label="Tipe Produksi"
                                     fullWidth
                                     size="small"
+                                    disabled={isLocked || submitting}
                                 >
                                     <MenuItem value=""><em>Tidak ada</em></MenuItem>
                                     {productionTypes.map(pt => (
@@ -346,6 +348,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                                     type="number"
                                     fullWidth
                                     size="small"
+                                    disabled={isLocked || submitting}
                                     onChange={(e) => {
                                         const val = Number(e.target.value);
                                         numField.onChange(val);
@@ -370,6 +373,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                                     type="number"
                                     fullWidth
                                     size="small"
+                                    disabled={isLocked || submitting}
                                     onChange={(e) => {
                                         const val = Number(e.target.value);
                                         numField.onChange(val);
@@ -402,40 +406,16 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
 
                     {/* OCR camera scan per item */}
                     <Grid size={{ xs: 12, md: 8 }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ height: '100%' }}>
+                        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ height: '100%' }}>
                             <Button
                                 variant="outlined"
-                                component="label"
                                 size="small"
-                                startIcon={scanningIndex === index ? <CircularProgress size={16} /> : <PhotoCamera />}
-                                disabled={scanningIndex !== null || submitting}
+                                startIcon={<PhotoCamera />}
+                                disabled={submitting || isLocked}
+                                onClick={() => onOpenScanner(index)}
                                 sx={{ textTransform: 'none', borderStyle: 'dashed' }}
                             >
-                                {scanningIndex === index ? 'Menganalisis...' : 'Kamera'}
-                                <input
-                                    hidden
-                                    accept="image/*"
-                                    type="file"
-                                    onChange={(e) => handleScanTicket(e, index)}
-                                    {...({ capture: 'environment' } as any)}
-                                />
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                component="label"
-                                size="small"
-                                startIcon={scanningIndex === index ? <CircularProgress size={16} /> : <ImageIcon />}
-                                disabled={scanningIndex !== null || submitting}
-                                color="secondary"
-                                sx={{ textTransform: 'none', borderStyle: 'dashed' }}
-                            >
-                                {scanningIndex === index ? 'Menganalisis...' : 'Galeri'}
-                                <input
-                                    hidden
-                                    accept="image/*"
-                                    type="file"
-                                    onChange={(e) => handleScanTicket(e, index)}
-                                />
+                                Scan Tiket Timbangan
                             </Button>
 
                             {photoUrl && (
@@ -470,12 +450,15 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
     const [loadingData, setLoadingData] = useState(false);
     const [loadingItems, setLoadingItems] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [scanningIndex, setScanningIndex] = useState<number | null>(null);
+    const [activeScannerIndex, setActiveScannerIndex] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     // Dynamic state for validated trucks
     const [trukList, setTrukList] = useState<any[]>([]);
     const [weightError, setWeightError] = useState<string | null>(null);
+
+    // Lock Form Check: Lock if the associated Sales Order is completed, or if the delivery order is completed
+    const isLocked = Boolean(deliveryOrder?.sales_order?.is_completed || deliveryOrder?.is_completed);
 
     // Selected Sales Order Info
     const [selectedCompany, setSelectedCompany] = useState<any>(null);
@@ -733,67 +716,23 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         }
     }, [watchItems, setValue, isBlendingManuallyEdited]);
 
-    // File to base64 helper
-    const fileToBase64 = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-        });
-    };
-
-    // OCR Ticket Scanner handler
-    const handleScanTicket = async (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
-        if (event.target.files && event.target.files[0]) {
-            const file = event.target.files[0];
-            setScanningIndex(index);
-            setError(null);
-
-            try {
-                // 1. Upload photo immediately to Supabase Storage
-                const fileName = `${Date.now()}_item_${index}.jpg`;
-                const filePath = `logistics/${fileName}`;
-                const publicUrl = await logisticsService.uploadTicketPhoto(file, filePath);
-                setValue(`items.${index}.photo_url`, publicUrl || '');
-
-                // 2. Trigger OCR Function
-                const base64 = await fileToBase64(file);
-                const { data, error: ocrError } = await supabase.functions.invoke('ocr-ticket', {
-                    body: { imageBase64: base64 }
-                });
-
-                if (ocrError) throw ocrError;
-                if (!data) throw new Error('No data returned from OCR');
-
-                if (data.success === false || data.error) {
-                    throw new Error(`OCR Server Error: ${data.error}`);
-                }
-
-                if (data.truck_plate) setValue(`items.${index}.truck_plate`, data.truck_plate.toUpperCase());
-                const ocrTicketNumber = data.ticket_number || data.ticket_no;
-                if (ocrTicketNumber) {
-                    setValue(`items.${index}.ticket_number`, String(ocrTicketNumber).toUpperCase());
-                }
-                if (data.gross_weight) {
-                    const grossVal = Number(data.gross_weight);
-                    setValue(`items.${index}.gross_weight`, grossVal);
-                    const tareVal = watchItems[index]?.tare_weight || 0;
-                    setValue(`items.${index}.net_weight`, Math.max(0, grossVal - tareVal));
-                }
-                if (data.tare_weight) {
-                    const tareVal = Number(data.tare_weight);
-                    setValue(`items.${index}.tare_weight`, tareVal);
-                    const grossVal = watchItems[index]?.gross_weight || 0;
-                    setValue(`items.${index}.net_weight`, Math.max(0, grossVal - tareVal));
-                }
-            } catch (err: any) {
-                console.error(err);
-                setError(`Gagal memindai tiket Truk #${index + 1}. Silakan input manual.`);
-            } finally {
-                setScanningIndex(null);
-            }
+    // OCR data capture handler from ScannerHub
+    const handleOcrCaptureForTruck = (result: any, index: number) => {
+        if (result.photo_url) setValue(`items.${index}.photo_url`, result.photo_url);
+        if (result.truck_plate) setValue(`items.${index}.truck_plate`, result.truck_plate);
+        if (result.ticket_number) setValue(`items.${index}.ticket_number`, result.ticket_number);
+        
+        const currentGross = result.gross_weight !== undefined ? result.gross_weight : (getValues(`items.${index}.gross_weight`) || 0);
+        const currentTare = result.tare_weight !== undefined ? result.tare_weight : (getValues(`items.${index}.tare_weight`) || 0);
+        
+        if (result.gross_weight !== undefined) {
+            setValue(`items.${index}.gross_weight`, result.gross_weight);
         }
+        if (result.tare_weight !== undefined) {
+            setValue(`items.${index}.tare_weight`, result.tare_weight);
+        }
+        
+        setValue(`items.${index}.net_weight`, Math.max(0, currentGross - currentTare));
     };
 
     // Form onSubmit
@@ -963,6 +902,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
     const totalNetWeight = trukList?.reduce((sum, item) => sum + (Number(item.produk_net) || 0), 0) || 0;
 
     return (
+        <>
         <Dialog
             open={open}
             onClose={onClose}
@@ -990,6 +930,14 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                         </Box>
                     ) : (
                         <Grid container spacing={3}>
+                            {isLocked && (
+                                <Grid size={12}>
+                                    <Alert severity="warning">
+                                        Transaksi penjualan ini telah selesai dan dikunci. Data tidak dapat diubah kembali.
+                                    </Alert>
+                                </Grid>
+                            )}
+
                             {(error || weightError || Object.keys(errors).length > 0) && (
                                 <Grid size={12}>
                                     <Alert severity="error">
@@ -1020,7 +968,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                 fullWidth
                                                 error={!!errors.sales_order_id}
                                                 helperText={errors.sales_order_id?.message}
-                                                disabled={!!deliveryOrder}
+                                                disabled={!!deliveryOrder || isLocked}
                                             >
                                                 {salesOrders.map(so => (
                                                     <MenuItem key={so.id} value={so.id}>
@@ -1062,7 +1010,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                             error={!!errors.product_name_sj}
                                             helperText={errors.product_name_sj?.message}
                                             InputLabelProps={{ shrink: true }}
-                                            disabled={!!deliveryOrder}
+                                            disabled={!!deliveryOrder || isLocked}
                                         />
                                     )}
                                 />
@@ -1218,6 +1166,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                         variant="outlined"
                                         size="small"
                                         startIcon={<AddIcon />}
+                                        disabled={submitting || isLocked}
                                         onClick={() => append({
                                             internal_product_id: '',
                                             shipment_id: '',
@@ -1256,10 +1205,10 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                             productionTypes={productionTypes}
                                             deliveryType={deliveryType}
                                             mode={mode}
-                                            scanningIndex={scanningIndex}
                                             submitting={submitting}
-                                            handleScanTicket={handleScanTicket}
+                                            onOpenScanner={(idx) => setActiveScannerIndex(idx)}
                                             errors={errors}
+                                            isLocked={isLocked}
                                         />
                                     ))}
                                 </Stack>
@@ -1289,8 +1238,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                     </Button>
                     <Button
                         type="submit"
-                        variant="contained"
-                        disabled={submitting || scanningIndex !== null || loadingData || loadingItems || !!weightError}
+                        disabled={submitting || loadingData || loadingItems || !!weightError || isLocked}
                         startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                         sx={{
                             borderRadius: '20px',
@@ -1304,6 +1252,16 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                 </DialogActions>
             </Box>
         </Dialog>
+        <ScannerHub
+            open={activeScannerIndex !== null}
+            onClose={() => setActiveScannerIndex(null)}
+            onCapture={(result) => {
+                if (activeScannerIndex !== null) {
+                    handleOcrCaptureForTruck(result, activeScannerIndex);
+                }
+            }}
+        />
+        </>
     );
 };
 

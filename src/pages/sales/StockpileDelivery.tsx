@@ -81,7 +81,7 @@ const StockpileDelivery: React.FC = () => {
                     .from('sales_orders')
                     .select(`
                         *,
-                        customer:master_partners(name),
+                        customer:master_partners(name, address),
                         product:master_products(name, sku_code),
                         company:master_companies(name)
                     `)
@@ -91,6 +91,7 @@ const StockpileDelivery: React.FC = () => {
                     so = {
                         ...data,
                         customer_name: data.customer?.name || '-',
+                        customer_address: data.customer?.address || '-',
                         product_name: data.product_name || data.product?.name || '-',
                         sku_code: data.product?.sku_code || '-',
                         company_name: data.company?.name || '-'
@@ -177,11 +178,20 @@ const StockpileDelivery: React.FC = () => {
                     setPrintSO(so);
                 }
 
-                setPrintDO({
-                    ...savedHeader,
-                    items: savedItems
-                });
-                setPrintCustomProductName(savedHeader.published_product_name || '');
+                const detailedDO = await deliveryService.getDeliveryOrdersDetailed('STOCKPILE');
+                const savedDetailedDO = detailedDO.find(d => d.id === savedHeader.id);
+                if (savedDetailedDO) {
+                    setPrintDO(savedDetailedDO);
+                } else {
+                    setPrintDO({
+                        ...savedHeader,
+                        customer_name: so?.customer_name || '-',
+                        customer_address: so?.customer_address || '-',
+                        company_name: companyInfo?.name || '-',
+                        items: savedItems
+                    });
+                }
+                setPrintCustomProductName(savedHeader.published_product_name || so?.product_name || '');
                 
                 setTimeout(() => {
                     handlePrint();

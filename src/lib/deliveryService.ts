@@ -1,13 +1,19 @@
 import { supabase } from './supabaseClient';
 import type { DeliveryOrder, SalesOrderDetailed, Shipment, MasterProduct } from '../types/supabase';
 
+const cleanPayload = (payload: any) => {
+    return Object.fromEntries(
+        Object.entries(payload).filter(([_, v]) => v != null)
+    );
+};
+
 export const deliveryService = {
     getActiveSalesOrders: async (): Promise<SalesOrderDetailed[]> => {
         const { data, error } = await supabase
             .from('sales_orders')
             .select(`
                 *,
-                customer:master_partners(name),
+                customer:master_partners(name, address),
                 product:master_products(name, sku_code),
                 company:master_companies(name)
             `)
@@ -19,6 +25,7 @@ export const deliveryService = {
         return (data || []).map((so: any) => ({
             ...so,
             customer_name: so.customer?.name || '-',
+            customer_address: so.customer?.address || '-',
             product_name: so.product_name || so.product?.name || '-',
             sku_code: so.product?.sku_code || '-',
             company_name: so.company?.name || '-'
@@ -135,11 +142,11 @@ export const deliveryService = {
                 return sum + net;
             }, 0);
 
-        const headerPayload = {
+        const headerPayload = cleanPayload({
             ...deliveryOrder,
             sj_number: sjNumber,
             net_weight: totalNetWeight
-        };
+        });
 
         const { data: headerData, error: headerError } = await supabase
             .from('delivery_orders')
@@ -159,7 +166,7 @@ export const deliveryService = {
                     throw new Error("Validation Error: truck_plate is missing or empty");
                 }
 
-                return {
+                const rawPayload = {
                     do_id: doId,
                     internal_product_id: item.internal_product_id,
                     truck_plate: item.truck_plate.trim().toUpperCase(),
@@ -173,9 +180,9 @@ export const deliveryService = {
                     blending_id: item.blending_id || null,
                     produk_net: item.produk_net !== undefined && item.produk_net !== null ? Number(item.produk_net) : Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0))
                 };
+
+                return cleanPayload(rawPayload);
             });
-
-
 
             const { error: itemsError } = await supabase
                 .from('delivery_order_items')
@@ -198,6 +205,10 @@ export const deliveryService = {
         deliveryOrder: Partial<DeliveryOrder>,
         items: any[]
     ): Promise<any> => {
+        if (!doId) {
+            throw new Error("Validation Error: doId is missing or invalid");
+        }
+
         const totalNetWeight = deliveryOrder.net_weight !== undefined && deliveryOrder.net_weight !== null
             ? deliveryOrder.net_weight
             : (items || []).reduce((sum, item) => {
@@ -205,10 +216,10 @@ export const deliveryService = {
                 return sum + net;
             }, 0);
 
-        const headerPayload = {
+        const headerPayload = cleanPayload({
             ...deliveryOrder,
             net_weight: totalNetWeight
-        };
+        });
 
         const { data: headerData, error: headerError } = await supabase
             .from('delivery_orders')
@@ -218,6 +229,18 @@ export const deliveryService = {
             .single();
 
         if (headerError) throw headerError;
+
+        // Fetch existing items to log their IDs before deletion
+        const { data: existingItems, error: fetchError } = await supabase
+            .from('delivery_order_items')
+            .select('id')
+            .eq('do_id', doId);
+
+        if (!fetchError && existingItems) {
+            existingItems.forEach(item => {
+                console.log("Menghapus item ID:", item.id);
+            });
+        }
 
         const { error: deleteError } = await supabase
             .from('delivery_order_items')
@@ -235,7 +258,7 @@ export const deliveryService = {
                     throw new Error("Validation Error: truck_plate is missing or empty");
                 }
 
-                return {
+                const rawPayload = {
                     do_id: doId,
                     internal_product_id: item.internal_product_id,
                     truck_plate: item.truck_plate.trim().toUpperCase(),
@@ -249,9 +272,9 @@ export const deliveryService = {
                     blending_id: item.blending_id || null,
                     produk_net: item.produk_net !== undefined && item.produk_net !== null ? Number(item.produk_net) : Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0))
                 };
+
+                return cleanPayload(rawPayload);
             });
-
-
 
             const { error: itemsError } = await supabase
                 .from('delivery_order_items')
@@ -270,8 +293,9 @@ export const deliveryService = {
                 *,
                 sales_order:sales_orders (
                     order_no,
-                    customer:master_partners (name),
-                    product:master_products (name)
+                    customer:master_partners (name, address),
+                    product:master_products (name),
+                    is_completed
                 ),
                 shipment:shipments (
                     vessel_name,
@@ -279,6 +303,15 @@ export const deliveryService = {
                     product_id
                 ),
                 company:master_companies (
+                    name,
+                    address1,
+                    address2,
+                    city,
+                    province,
+                    zipcode,
+                    logo_url
+                ),
+                transporter:master_partners!transporter_id (
                     name
                 ),
                 delivery_order_items (
@@ -320,8 +353,10 @@ export const deliveryService = {
                 ...doItem,
                 so_number: doItem.sales_order?.order_no || '-',
                 customer_name: doItem.sales_order?.customer?.name || '-',
+                customer_address: doItem.sales_order?.customer?.address || '-',
                 product_name: doItem.published_product_name || doItem.sales_order?.product?.name || '-',
                 company_name: doItem.company?.name || '-',
+                transporter_name: doItem.transporter?.name || '-',
                 vessel_display: vesselDisplay,
                 internal_product_name: firstItem.internal_product?.name || '-',
                 net_weight: doItem.delivery_type === 'STOCKPILE' && doItem.net_weight !== null && doItem.net_weight !== undefined ? Number(doItem.net_weight) : totalNetWeight,

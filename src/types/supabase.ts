@@ -167,6 +167,7 @@ export interface SalesOrder {
 
 export interface SalesOrderDetailed extends SalesOrder {
     customer_name?: string;
+    customer_address?: string;
     product_name?: string;
     company_name?: string | null;
     sku_code?: string;
@@ -195,6 +196,8 @@ export interface DeliveryOrder {
     internal_product_id?: string | null;
     delivery_type?: 'DIRECT' | 'STOCKPILE' | null;
     type_blending?: 'NONE' | 'BLENDING TUMPUK' | 'BLENDING BAWAH' | null;
+    transporter_id?: string | null;
+    adjust_weight?: number | null;
 }
 
 export interface DeliveryOrderItem {

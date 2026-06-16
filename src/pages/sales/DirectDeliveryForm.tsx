@@ -11,33 +11,28 @@ import {
     TextField,
     MenuItem,
     Typography,
-    Divider,
-    IconButton,
-    Card,
-    CardContent,
     Stack,
     CircularProgress,
     Alert,
-    Tooltip
+    Divider,
 } from '@mui/material';
 import {
-    Delete as DeleteIcon,
     PhotoCamera,
-    Image as ImageIcon,
     Save as SaveIcon
 } from '@mui/icons-material';
-import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
-import { supabase } from '../../lib/supabaseClient';
+import { useForm, Controller } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
 import { containsHtmlOrScript } from '../../lib/sanitizer';
 import { useColorMode } from '../../context/ThemeContext';
 import { deliveryService } from '../../lib/deliveryService';
 import { masterService } from '../../lib/masterService';
-import { logisticsService } from '../../lib/logisticsService';
 import type { SalesOrderDetailed, Shipment, MasterProduct } from '../../types/supabase';
+import ScannerHub from '../../components/common/ScannerHub';
 
-interface DirectDeliveryOrderItemFormValue {
-    id?: string;
+interface DirectDeliveryFormValues {
+    sales_order_id: string;
+    product_name_sj: string;
+    transporter_id: string;
     internal_product_id: string;
     shipment_id: string;
     vessel_name: string;
@@ -49,347 +44,12 @@ interface DirectDeliveryOrderItemFormValue {
     photo_url: string;
 }
 
-interface DirectDeliveryOrderFormValues {
-    sales_order_id: string;
-    product_name_sj: string;
-    items: DirectDeliveryOrderItemFormValue[];
-}
-
 interface DirectDeliveryFormProps {
     open: boolean;
     onClose: () => void;
     deliveryOrder: any | null; // Header record when editing
     onSuccess: (savedDO: any, savedItems: any[]) => void;
 }
-
-// Sub-component for individual truck rows to manage its own vessel/shipment fetching dynamically
-interface DirectDeliveryOrderItemRowProps {
-    index: number;
-    control: any;
-    setValue: any;
-    getValues: any;
-    watch: any;
-    remove: (idx: number) => void;
-    fieldsLength: number;
-    internalProducts: MasterProduct[];
-    mode: 'light' | 'dark';
-    scanningIndex: number | null;
-    submitting: boolean;
-    handleScanTicket: (event: React.ChangeEvent<HTMLInputElement>, idx: number) => Promise<void>;
-    errors: any;
-}
-
-const DirectDeliveryOrderItemRow: React.FC<DirectDeliveryOrderItemRowProps> = ({
-    index,
-    control,
-    setValue,
-    getValues,
-    watch,
-    remove,
-    fieldsLength,
-    internalProducts,
-    mode,
-    scanningIndex,
-    submitting,
-    handleScanTicket,
-    errors
-}) => {
-    // Watch the selected internal product for this row to fetch shipments
-    const selectedProductId = useWatch({
-        control,
-        name: `items.${index}.internal_product_id`
-    });
-
-    const [shipments, setShipments] = useState<Shipment[]>([]);
-    const [loadingShipments, setLoadingShipments] = useState(false);
-    const [shipmentError, setShipmentError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (!selectedProductId) {
-            setShipments([]);
-            setShipmentError(null);
-            setValue(`items.${index}.shipment_id`, '');
-            setValue(`items.${index}.vessel_name`, '');
-            return;
-        }
-
-        const fetchShipments = async () => {
-            setLoadingShipments(true);
-            setShipmentError(null);
-            try {
-                const data = await deliveryService.getShipmentsByProduct(selectedProductId);
-                setShipments(data);
-                
-                if (data.length === 1) {
-                    // Exactly 1 shipment found, auto-select it
-                    setValue(`items.${index}.shipment_id`, data[0].id);
-                    setValue(`items.${index}.vessel_name`, data[0].vessel_name || '');
-                } else if (data.length === 0) {
-                    setShipmentError('Tidak ada pengiriman (shipment) untuk produk ini');
-                    setValue(`items.${index}.shipment_id`, '');
-                    setValue(`items.${index}.vessel_name`, '');
-                } else {
-                    // Multiple found. Clear selection if current value is invalid
-                    const currentVal = getValues(`items.${index}.shipment_id`);
-                    if (currentVal && !data.some(s => s.id === currentVal)) {
-                        setValue(`items.${index}.shipment_id`, '');
-                        setValue(`items.${index}.vessel_name`, '');
-                    }
-                }
-            } catch (err) {
-                console.error('Error fetching shipments for item:', err);
-                setShipmentError('Gagal memuat data vessel.');
-            } finally {
-                setLoadingShipments(false);
-            }
-        };
-
-        fetchShipments();
-    }, [selectedProductId, index, setValue, getValues]);
-
-    const handleVesselChange = (shipmentId: string) => {
-        const selected = shipments.find(s => s.id === shipmentId);
-        if (selected) {
-            setValue(`items.${index}.shipment_id`, selected.id);
-            setValue(`items.${index}.vessel_name`, selected.vessel_name || '');
-        } else {
-            setValue(`items.${index}.shipment_id`, '');
-            setValue(`items.${index}.vessel_name`, '');
-        }
-    };
-
-    const gross = watch(`items.${index}.gross_weight`) || 0;
-    const tare = watch(`items.${index}.tare_weight`) || 0;
-    const net = Math.max(0, gross - tare);
-    const photoUrl = watch(`items.${index}.photo_url`);
-
-    return (
-        <Card
-            elevation={0}
-            sx={{
-                borderRadius: '12px',
-                border: '1px solid',
-                borderColor: 'divider',
-                background: mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)',
-                position: 'relative'
-            }}
-        >
-            <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                        Truk #{index + 1}
-                    </Typography>
-                    {fieldsLength > 1 && (
-                        <Tooltip title="Hapus Truk">
-                            <IconButton size="small" color="error" onClick={() => remove(index)}>
-                                <DeleteIcon />
-                            </IconButton>
-                        </Tooltip>
-                    )}
-                </Box>
-                <Grid container spacing={2}>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Controller
-                            name={`items.${index}.internal_product_id`}
-                            control={control}
-                            rules={{ required: true }}
-                            render={({ field: selectField }) => (
-                                <TextField
-                                    {...selectField}
-                                    select
-                                    label="Produk Internal (Raw)"
-                                    fullWidth
-                                    size="small"
-                                    error={!!errors?.items?.[index]?.internal_product_id}
-                                    helperText={errors?.items?.[index]?.internal_product_id ? 'Wajib dipilih' : ''}
-                                >
-                                    {internalProducts.map(p => (
-                                        <MenuItem key={p.id} value={p.id}>
-                                            {p.name}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                            )}
-                        />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Controller
-                            name={`items.${index}.shipment_id`}
-                            control={control}
-                            rules={{ required: true }}
-                            render={({ field: selectField }) => (
-                                <TextField
-                                    {...selectField}
-                                    select
-                                    label="Pilih Vessel/Tongkang"
-                                    fullWidth
-                                    size="small"
-                                    disabled={loadingShipments || !selectedProductId}
-                                    error={!!errors?.items?.[index]?.shipment_id || !!shipmentError}
-                                    helperText={shipmentError || (errors?.items?.[index]?.shipment_id ? 'Wajib dipilih' : '') || (loadingShipments ? 'Memuat...' : '')}
-                                    onChange={(e) => {
-                                        selectField.onChange(e.target.value);
-                                        handleVesselChange(e.target.value);
-                                    }}
-                                >
-                                    {shipments.map(s => (
-                                        <MenuItem key={s.id} value={s.id}>
-                                            {s.vessel_name} - {s.invoice_no}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                            )}
-                        />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Controller
-                            name={`items.${index}.truck_plate`}
-                            control={control}
-                            rules={{ required: true }}
-                            render={({ field: textField }) => (
-                                <TextField
-                                    {...textField}
-                                    label="No. Polisi"
-                                    fullWidth
-                                    size="small"
-                                    placeholder="e.g. B 1234 XY"
-                                    onChange={(e) => textField.onChange(e.target.value.toUpperCase())}
-                                    error={!!errors?.items?.[index]?.truck_plate}
-                                    helperText={errors?.items?.[index]?.truck_plate ? 'Wajib diisi' : ''}
-                                />
-                            )}
-                        />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Controller
-                            name={`items.${index}.ticket_number`}
-                            control={control}
-                            rules={{ required: true }}
-                            render={({ field: textField }) => (
-                                <TextField
-                                    {...textField}
-                                    label="Nomor Ticket"
-                                    fullWidth
-                                    size="small"
-                                    placeholder="e.g. T-12345"
-                                    onChange={(e) => textField.onChange(e.target.value.toUpperCase())}
-                                    error={!!errors?.items?.[index]?.ticket_number}
-                                    helperText={errors?.items?.[index]?.ticket_number ? 'Wajib diisi' : ''}
-                                />
-                            )}
-                        />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Controller
-                            name={`items.${index}.gross_weight`}
-                            control={control}
-                            rules={{ required: true, min: 1 }}
-                            render={({ field: numField }) => (
-                                <TextField
-                                    {...numField}
-                                    label="Gross (Kg)"
-                                    type="number"
-                                    fullWidth
-                                    size="small"
-                                    onChange={(e) => {
-                                        const val = Number(e.target.value);
-                                        numField.onChange(val);
-                                        setValue(`items.${index}.net_weight`, Math.max(0, val - tare));
-                                    }}
-                                    error={!!errors?.items?.[index]?.gross_weight}
-                                    helperText={errors?.items?.[index]?.gross_weight ? 'Wajib diisi & > 0' : ''}
-                                />
-                            )}
-                        />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Controller
-                            name={`items.${index}.tare_weight`}
-                            control={control}
-                            rules={{ required: true, min: 0 }}
-                            render={({ field: numField }) => (
-                                <TextField
-                                    {...numField}
-                                    label="Tare (Kg)"
-                                    type="number"
-                                    fullWidth
-                                    size="small"
-                                    onChange={(e) => {
-                                        const val = Number(e.target.value);
-                                        numField.onChange(val);
-                                        setValue(`items.${index}.net_weight`, Math.max(0, gross - val));
-                                    }}
-                                    error={!!errors?.items?.[index]?.tare_weight}
-                                    helperText={errors?.items?.[index]?.tare_weight ? 'Wajib diisi & >= 0' : ''}
-                                />
-                            )}
-                        />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Box sx={{ bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)', p: 1, borderRadius: 2, textAlign: 'center', border: '1px solid rgba(0, 0, 0, 0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', boxSizing: 'border-box' }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>Netto (Kg)</Typography>
-                            <Typography variant="subtitle1" color="primary" fontWeight="bold" sx={{ mt: -0.5 }}>
-                                {net.toLocaleString('id-ID')}
-                            </Typography>
-                        </Box>
-                    </Grid>
-
-                    {/* OCR camera scan per item */}
-                    <Grid size={{ xs: 12, md: 8 }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ height: '100%' }}>
-                            <Button
-                                variant="outlined"
-                                component="label"
-                                size="small"
-                                startIcon={scanningIndex === index ? <CircularProgress size={16} /> : <PhotoCamera />}
-                                disabled={scanningIndex !== null || submitting}
-                                sx={{ textTransform: 'none', borderStyle: 'dashed' }}
-                            >
-                                {scanningIndex === index ? 'Menganalisis...' : 'Kamera'}
-                                <input
-                                    hidden
-                                    accept="image/*"
-                                    type="file"
-                                    onChange={(e) => handleScanTicket(e, index)}
-                                    {...({ capture: 'environment' } as any)}
-                                />
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                component="label"
-                                size="small"
-                                startIcon={scanningIndex === index ? <CircularProgress size={16} /> : <ImageIcon />}
-                                disabled={scanningIndex !== null || submitting}
-                                color="secondary"
-                                sx={{ textTransform: 'none', borderStyle: 'dashed' }}
-                            >
-                                {scanningIndex === index ? 'Menganalisis...' : 'Galeri'}
-                                <input
-                                    hidden
-                                    accept="image/*"
-                                    type="file"
-                                    onChange={(e) => handleScanTicket(e, index)}
-                                />
-                            </Button>
-
-                            {photoUrl && (
-                                <Box sx={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', border: '1px solid divider' }}>
-                                    <img src={photoUrl} alt="Ticket" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                </Box>
-                            )}
-                        </Stack>
-                    </Grid>
-                </Grid>
-            </CardContent>
-        </Card>
-    );
-};
 
 const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
     open,
@@ -403,57 +63,66 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
     // Dropdown Data States
     const [salesOrders, setSalesOrders] = useState<SalesOrderDetailed[]>([]);
     const [internalProducts, setInternalProducts] = useState<MasterProduct[]>([]);
+    const [transporters, setTransporters] = useState<any[]>([]);
+    const [shipments, setShipments] = useState<Shipment[]>([]);
     
     // UI Loading / Submitting States
     const [loadingData, setLoadingData] = useState(false);
     const [loadingItems, setLoadingItems] = useState(false);
+    const [loadingShipments, setLoadingShipments] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [scanningIndex, setScanningIndex] = useState<number | null>(null);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    
+    // Error States
     const [error, setError] = useState<string | null>(null);
+    const [shipmentError, setShipmentError] = useState<string | null>(null);
 
     // Selected Sales Order Info
     const [selectedCompany, setSelectedCompany] = useState<any>(null);
     const [selectedCustomerName, setSelectedCustomerName] = useState<string>('');
 
-    const { control, handleSubmit, watch, setValue, reset, getValues, formState: { errors } } = useForm<DirectDeliveryOrderFormValues>({
+    const { control, handleSubmit, watch, setValue, getValues, reset, formState: { errors } } = useForm<DirectDeliveryFormValues>({
         defaultValues: {
             sales_order_id: '',
             product_name_sj: '',
-            items: [
-                {
-                    internal_product_id: '',
-                    shipment_id: '',
-                    vessel_name: '',
-                    truck_plate: '',
-                    ticket_number: '',
-                    gross_weight: 0,
-                    tare_weight: 0,
-                    net_weight: 0,
-                    photo_url: ''
-                }
-            ]
+            transporter_id: '',
+            internal_product_id: '',
+            shipment_id: '',
+            vessel_name: '',
+            truck_plate: '',
+            ticket_number: '',
+            gross_weight: 0,
+            tare_weight: 0,
+            net_weight: 0,
+            photo_url: ''
         }
     });
 
-    const { fields, remove } = useFieldArray({
-        control,
-        name: 'items'
-    });
-
+    // Watchers to manage strict sequential flow dependencies
     const selectedSOId = watch('sales_order_id');
-    const watchItems = watch('items');
+    const selectedInternalProductId = watch('internal_product_id');
 
-    // Load static dropdown lists
+    const gross = watch('gross_weight') || 0;
+    const tare = watch('tare_weight') || 0;
+    const net = Math.max(0, gross - tare);
+    const photoUrl = watch('photo_url');
+
+    // Lock Form Check: Lock if the associated Sales Order is completed, or if the delivery order is completed
+    const isLocked = Boolean(deliveryOrder?.sales_order?.is_completed || deliveryOrder?.is_completed);
+
+    // 1. Initial Load of Master Data (Active Sales Orders, Internal Raw Products, Transporters)
     useEffect(() => {
         const loadDropdowns = async () => {
             try {
                 setLoadingData(true);
-                const [orders, rawProducts] = await Promise.all([
+                const [orders, rawProducts, partners] = await Promise.all([
                     deliveryService.getActiveSalesOrders(),
-                    deliveryService.getInternalProducts()
+                    deliveryService.getInternalProducts(),
+                    masterService.getPartners()
                 ]);
                 setSalesOrders(orders);
                 setInternalProducts(rawProducts);
+                setTransporters(partners.filter(p => p.type === 'TRANSPORTER'));
             } catch (err) {
                 console.error('Error loading form metadata:', err);
                 setError('Gagal memuat data master untuk form.');
@@ -467,7 +136,7 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
         }
     }, [open]);
 
-    // Handle Edit Mode: Load items and set form states
+    // 2. Handle Edit Mode: Pre-load values
     useEffect(() => {
         const loadExistingItems = async () => {
             if (deliveryOrder && open) {
@@ -475,37 +144,40 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                 setError(null);
                 try {
                     const itemsData = await deliveryService.getDeliveryOrderItems(deliveryOrder.id);
-                    const itemsMapped = itemsData.length > 0 
-                        ? itemsData.map(item => ({
-                            id: item.id,
-                            internal_product_id: item.internal_product_id || '',
-                            shipment_id: item.shipment_id || '',
-                            vessel_name: item.vessel_name || '',
-                            truck_plate: item.truck_plate || '',
+                    if (itemsData.length > 0) {
+                        const firstItem = itemsData[0];
+                        reset({
+                            sales_order_id: deliveryOrder.sales_order_id || '',
+                            product_name_sj: deliveryOrder.published_product_name || '',
+                            transporter_id: deliveryOrder.transporter_id || '',
+                            internal_product_id: firstItem.internal_product_id || deliveryOrder.internal_product_id || '',
+                            shipment_id: firstItem.shipment_id || deliveryOrder.shipment_id || '',
+                            vessel_name: firstItem.vessel_name || deliveryOrder.vessel_name || '',
+                            truck_plate: firstItem.truck_plate || deliveryOrder.truck_plate || '',
+                            ticket_number: firstItem.ticket_number || deliveryOrder.ticket_number || '',
+                            gross_weight: Number(firstItem.gross_weight) || Number(deliveryOrder.gross_weight) || 0,
+                            tare_weight: Number(firstItem.tare_weight) || Number(deliveryOrder.tare_weight) || 0,
+                            net_weight: Number(firstItem.net_weight) || Number(deliveryOrder.net_weight) || 0,
+                            photo_url: firstItem.photo_url || deliveryOrder.photo_url || ''
+                        });
+                    } else {
+                        reset({
+                            sales_order_id: deliveryOrder.sales_order_id || '',
+                            product_name_sj: deliveryOrder.published_product_name || '',
+                            transporter_id: deliveryOrder.transporter_id || '',
+                            internal_product_id: deliveryOrder.internal_product_id || '',
+                            shipment_id: deliveryOrder.shipment_id || '',
+                            vessel_name: deliveryOrder.vessel_name || '',
+                            truck_plate: deliveryOrder.truck_plate || '',
                             ticket_number: deliveryOrder.ticket_number || '',
-                            gross_weight: Number(item.gross_weight) || 0,
-                            tare_weight: Number(item.tare_weight) || 0,
-                            net_weight: Number(item.net_weight) || 0,
-                            photo_url: item.photo_url || ''
-                          }))
-                        : [{
-                            internal_product_id: '',
-                            shipment_id: '',
-                            vessel_name: '',
-                            truck_plate: '',
-                            ticket_number: '',
-                            gross_weight: 0,
-                            tare_weight: 0,
-                            net_weight: 0,
-                            photo_url: ''
-                          }];
-                    reset({
-                        sales_order_id: deliveryOrder.sales_order_id || '',
-                        product_name_sj: deliveryOrder.published_product_name || '',
-                        items: itemsMapped
-                    });
+                            gross_weight: Number(deliveryOrder.gross_weight) || 0,
+                            tare_weight: Number(deliveryOrder.tare_weight) || 0,
+                            net_weight: Number(deliveryOrder.net_weight) || 0,
+                            photo_url: deliveryOrder.photo_url || ''
+                        });
+                    }
 
-                    // Set Customer and Company manually since the SO selection effect won't fire if the SO isn't in active lists
+                    // Pre-fill read-only Customer & Company
                     setSelectedCustomerName(deliveryOrder.customer_name || '');
                     if (deliveryOrder.company_id) {
                         const comp = await masterService.getCompanyById(deliveryOrder.company_id);
@@ -521,19 +193,16 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                 reset({
                     sales_order_id: '',
                     product_name_sj: '',
-                    items: [
-                        {
-                            internal_product_id: '',
-                            shipment_id: '',
-                            vessel_name: '',
-                            truck_plate: '',
-                            ticket_number: '',
-                            gross_weight: 0,
-                            tare_weight: 0,
-                            net_weight: 0,
-                            photo_url: ''
-                        }
-                    ]
+                    transporter_id: '',
+                    internal_product_id: '',
+                    shipment_id: '',
+                    vessel_name: '',
+                    truck_plate: '',
+                    ticket_number: '',
+                    gross_weight: 0,
+                    tare_weight: 0,
+                    net_weight: 0,
+                    photo_url: ''
                 });
                 setSelectedCustomerName('');
                 setSelectedCompany(null);
@@ -543,9 +212,17 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
         loadExistingItems();
     }, [deliveryOrder, open, reset]);
 
-    // Triggered when Sales Order changes: updates company, customer name, and published product name
+    // 3. Sequential Logic 1: Watch sales_order_id to auto-populate customer/company and manage dependencies
     useEffect(() => {
-        if (!selectedSOId) return;
+        if (!selectedSOId) {
+            setSelectedCustomerName('');
+            setSelectedCompany(null);
+            if (!deliveryOrder) {
+                setValue('product_name_sj', '');
+                setValue('transporter_id', '');
+            }
+            return;
+        }
 
         const so = salesOrders.find(item => item.id === selectedSOId);
         if (so) {
@@ -570,71 +247,78 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
         }
     }, [selectedSOId, salesOrders, setValue, deliveryOrder]);
 
-    // File to base64 helper
-    const fileToBase64 = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-        });
+    // 4. Sequential Logic 2: Watch internal_product_id to fetch active shipments and clear dependent vessel fields
+    useEffect(() => {
+        // Clear dependent vessel fields whenever product changes
+        setValue('shipment_id', '');
+        setValue('vessel_name', '');
+        setShipmentError(null);
+
+        if (!selectedInternalProductId) {
+            setShipments([]);
+            return;
+        }
+
+        const fetchShipmentsForProduct = async () => {
+            setLoadingShipments(true);
+            try {
+                const data = await deliveryService.getShipmentsByProduct(selectedInternalProductId);
+                setShipments(data);
+
+                if (data.length === 0) {
+                    setShipmentError('Produk ini tidak memiliki pengiriman (shipment) aktif');
+                } else if (data.length === 1) {
+                    // Auto-select if only 1 shipment exists
+                    setValue('shipment_id', data[0].id);
+                    setValue('vessel_name', data[0].vessel_name || '');
+                } else {
+                    // Check if current shipment is valid (mostly during edits)
+                    const currentVal = getValues('shipment_id');
+                    if (currentVal && !data.some(s => s.id === currentVal)) {
+                        setValue('shipment_id', '');
+                        setValue('vessel_name', '');
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching shipments:', err);
+                setShipmentError('Gagal memuat data vessel.');
+            } finally {
+                setLoadingShipments(false);
+            }
+        };
+
+        fetchShipmentsForProduct();
+    }, [selectedInternalProductId, setValue, getValues]);
+
+    // Handle Vessel Selection Change
+    const handleVesselChange = (shipmentId: string) => {
+        const selected = shipments.find(s => s.id === shipmentId);
+        if (selected) {
+            setValue('shipment_id', selected.id);
+            setValue('vessel_name', selected.vessel_name || '');
+        } else {
+            setValue('shipment_id', '');
+            setValue('vessel_name', '');
+        }
     };
 
-    // OCR Ticket Scanner handler
-    const handleScanTicket = async (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
-        if (event.target.files && event.target.files[0]) {
-            const file = event.target.files[0];
-            setScanningIndex(index);
-            setError(null);
-
-            try {
-                // 1. Upload photo immediately to Supabase Storage
-                const fileName = `${Date.now()}_item_${index}.jpg`;
-                const filePath = `logistics/${fileName}`;
-                const publicUrl = await logisticsService.uploadTicketPhoto(file, filePath);
-                setValue(`items.${index}.photo_url`, publicUrl || '');
-
-                // 2. Trigger OCR Function
-                const base64 = await fileToBase64(file);
-                const { data, error: ocrError } = await supabase.functions.invoke('ocr-ticket', {
-                    body: { imageBase64: base64 }
-                });
-
-                if (ocrError) throw ocrError;
-                if (!data) throw new Error('No data returned from OCR');
-
-                if (data.success === false || data.error) {
-                    throw new Error(`OCR Server Error: ${data.error}`);
-                }
-
-                if (data.truck_plate) setValue(`items.${index}.truck_plate`, data.truck_plate.toUpperCase());
-                const ocrTicketNumber = data.ticket_number || data.ticket_no;
-                if (ocrTicketNumber) {
-                    setValue(`items.${index}.ticket_number`, String(ocrTicketNumber).toUpperCase());
-                }
-                if (data.gross_weight) {
-                    const grossVal = Number(data.gross_weight);
-                    setValue(`items.${index}.gross_weight`, grossVal);
-                    const tareVal = watchItems[index]?.tare_weight || 0;
-                    setValue(`items.${index}.net_weight`, Math.max(0, grossVal - tareVal));
-                }
-                if (data.tare_weight) {
-                    const tareVal = Number(data.tare_weight);
-                    setValue(`items.${index}.tare_weight`, tareVal);
-                    const grossVal = watchItems[index]?.gross_weight || 0;
-                    setValue(`items.${index}.net_weight`, Math.max(0, grossVal - tareVal));
-                }
-            } catch (err: any) {
-                console.error(err);
-                setError(`Gagal memindai tiket Truk #${index + 1}. Silakan input manual.`);
-            } finally {
-                setScanningIndex(null);
-            }
+    // Handle OCR data capture from ScannerHub
+    const handleOcrCapture = (result: any) => {
+        if (result.photo_url) setValue('photo_url', result.photo_url);
+        if (result.truck_plate) setValue('truck_plate', result.truck_plate);
+        if (result.ticket_number) setValue('ticket_number', result.ticket_number);
+        if (result.gross_weight) {
+            setValue('gross_weight', result.gross_weight);
+            setValue('net_weight', Math.max(0, result.gross_weight - tare));
+        }
+        if (result.tare_weight) {
+            setValue('tare_weight', result.tare_weight);
+            setValue('net_weight', Math.max(0, (getValues('gross_weight') || 0) - result.tare_weight));
         }
     };
 
     // Form onSubmit
-    const onSubmit = async (data: DirectDeliveryOrderFormValues) => {
+    const onSubmit = async (data: DirectDeliveryFormValues) => {
         setError(null);
         setSubmitting(true);
 
@@ -651,51 +335,46 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
             return;
         }
 
-        if (!data.items || data.items.length === 0) {
-            setError('Minimal harus menambahkan satu truk/item detail.');
+        // Validate fields
+        if (!data.transporter_id) {
+            setError('Transporter wajib dipilih.');
             setSubmitting(false);
             return;
         }
-
-        // Validate detail list items
-        for (let i = 0; i < data.items.length; i++) {
-            const item = data.items[i];
-            if (!item.internal_product_id) {
-                setError(`Produk Internal untuk Truk #${i + 1} wajib dipilih.`);
-                setSubmitting(false);
-                return;
-            }
-            if (!item.shipment_id) {
-                setError(`Vessel/Tongkang untuk Truk #${i + 1} wajib dipilih.`);
-                setSubmitting(false);
-                return;
-            }
-            if (!item.truck_plate?.trim()) {
-                setError(`No. Polisi untuk Truk #${i + 1} wajib diisi.`);
-                setSubmitting(false);
-                return;
-            }
-            if (!item.ticket_number?.trim()) {
-                setError(`Nomor Ticket untuk Truk #${i + 1} wajib diisi.`);
-                setSubmitting(false);
-                return;
-            }
-            if (containsHtmlOrScript(item.truck_plate) || containsHtmlOrScript(item.ticket_number)) {
-                setError(`Input pada Truk #${i + 1} mengandung karakter tidak valid atau script berbahaya.`);
-                setSubmitting(false);
-                return;
-            }
-            if (Number(item.gross_weight) <= 0) {
-                setError(`Gross untuk Truk #${i + 1} harus lebih besar dari 0.`);
-                setSubmitting(false);
-                return;
-            }
+        if (!data.internal_product_id) {
+            setError('Mohon pilih Produk Internal terlebih dahulu.');
+            setSubmitting(false);
+            return;
+        }
+        if (!data.shipment_id) {
+            setError('Vessel/Tongkang wajib dipilih.');
+            setSubmitting(false);
+            return;
+        }
+        if (!data.truck_plate?.trim()) {
+            setError('No. Polisi wajib diisi.');
+            setSubmitting(false);
+            return;
+        }
+        if (!data.ticket_number?.trim()) {
+            setError('Nomor Ticket wajib diisi.');
+            setSubmitting(false);
+            return;
+        }
+        if (containsHtmlOrScript(data.truck_plate) || containsHtmlOrScript(data.ticket_number)) {
+            setError('Input mengandung karakter tidak valid atau script berbahaya.');
+            setSubmitting(false);
+            return;
+        }
+        if (Number(data.gross_weight) <= 0) {
+            setError('Gross harus lebih besar dari 0.');
+            setSubmitting(false);
+            return;
         }
 
         // Fetch SO company id details
         let so = salesOrders.find(item => item.id === data.sales_order_id);
         if (!so && deliveryOrder) {
-            // Safe fallback during editing
             so = {
                 id: deliveryOrder.sales_order_id,
                 order_no: deliveryOrder.so_number || '-',
@@ -717,40 +396,52 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
             return;
         }
 
-        // Map items payload to force type_production_id and blending_id to null
-        const itemsPayload = data.items.map(item => ({
-            ...item,
-            truck_plate: item.truck_plate?.trim().toUpperCase() || '',
-            ticket_number: item.ticket_number?.trim().toUpperCase() || '',
-            type_production_id: null,
-            blending_id: null
-        }));
+        const calculatedNet = Math.max(0, (Number(data.gross_weight) || 0) - (Number(data.tare_weight) || 0));
+
+        // Detail payload: single truck containing all explicit fields
+        const itemsPayload = [
+            {
+                id: deliveryOrder?.items?.[0]?.id || undefined,
+                internal_product_id: data.internal_product_id,
+                shipment_id: data.shipment_id,
+                vessel_name: data.vessel_name,
+                truck_plate: data.truck_plate.trim().toUpperCase(),
+                ticket_number: data.ticket_number.trim().toUpperCase(),
+                gross_weight: Number(data.gross_weight) || 0,
+                tare_weight: Number(data.tare_weight) || 0,
+                net_weight: calculatedNet,
+                photo_url: data.photo_url || '',
+                type_production_id: null,
+                blending_id: null,
+                produk_net: calculatedNet
+            }
+        ];
+
+        // Header payload: mirror the values of the single truck and include new transporter values
+        const headerPayload = {
+            sales_order_id: data.sales_order_id,
+            published_product_name: trimmedProductNameSj,
+            company_id: so.company_id,
+            created_by: loggedInProfile?.uuid || null,
+            delivery_type: 'DIRECT' as const,
+            truck_plate: data.truck_plate.trim().toUpperCase(),
+            ticket_number: data.ticket_number.trim().toUpperCase(),
+            gross_weight: Number(data.gross_weight) || 0,
+            tare_weight: Number(data.tare_weight) || 0,
+            net_weight: calculatedNet,
+            shipment_id: data.shipment_id || null,
+            vessel_name: data.vessel_name || null,
+            internal_product_id: data.internal_product_id || null,
+            type_blending: 'NONE' as const,
+            transporter_id: data.transporter_id || null,
+            adjust_weight: 0 // Explicitly set to 0 based on schema migration defaults
+        };
 
         try {
-            const firstItem = itemsPayload[0] || {};
-            const headerPayload = {
-                sales_order_id: data.sales_order_id,
-                published_product_name: trimmedProductNameSj,
-                company_id: so.company_id,
-                created_by: loggedInProfile?.uuid || null,
-                delivery_type: 'DIRECT' as const,
-                // Task 1: Auto-fill values from the truck detail to the header
-                truck_plate: firstItem.truck_plate || null,
-                ticket_number: firstItem.ticket_number || null,
-                gross_weight: Number(firstItem.gross_weight) || 0,
-                tare_weight: Number(firstItem.tare_weight) || 0,
-                net_weight: Math.max(0, (Number(firstItem.gross_weight) || 0) - (Number(firstItem.tare_weight) || 0)),
-                shipment_id: firstItem.shipment_id || null,
-                vessel_name: firstItem.vessel_name || null,
-                internal_product_id: firstItem.internal_product_id || null
-            };
-
             let savedHeader;
             if (deliveryOrder) {
-                // Update header and replace detail items
                 savedHeader = await deliveryService.updateDeliveryOrderWithItems(deliveryOrder.id, headerPayload, itemsPayload);
             } else {
-                // Create header and insert detail items
                 savedHeader = await deliveryService.createDeliveryOrderWithItems(headerPayload, itemsPayload);
             }
 
@@ -764,18 +455,13 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
         }
     };
 
-    // Calculate total net weight displayed in the form summary
-    const totalNetWeight = watchItems?.reduce((sum, item) => {
-        const net = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
-        return sum + net;
-    }, 0) || 0;
-
     return (
+        <>
         <Dialog
             open={open}
             onClose={onClose}
             fullWidth
-            maxWidth="md"
+            maxWidth="sm"
             PaperProps={{
                 sx: {
                     borderRadius: '16px',
@@ -797,7 +483,15 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                             <CircularProgress />
                         </Box>
                     ) : (
-                        <Grid container spacing={3}>
+                        <Grid container spacing={2}>
+                            {isLocked && (
+                                <Grid size={12}>
+                                    <Alert severity="warning">
+                                        Transaksi penjualan ini telah selesai dan dikunci. Data tidak dapat diubah kembali.
+                                    </Alert>
+                                </Grid>
+                            )}
+
                             {(error || Object.keys(errors).length > 0) && (
                                 <Grid size={12}>
                                     <Alert severity="error">
@@ -806,47 +500,89 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                                 </Grid>
                             )}
 
-                            {/* Header Section */}
+                            {/* No. Surat Jalan */}
                             <Grid size={12}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
-                                    Informasi Surat Jalan (Header)
-                                </Typography>
-                                <Divider sx={{ mb: 2 }} />
+                                <TextField
+                                    label="No. Surat Jalan"
+                                    value={deliveryOrder ? deliveryOrder.sj_number : 'Otomatis'}
+                                    fullWidth
+                                    disabled
+                                    InputLabelProps={{ shrink: true }}
+                                    size="small"
+                                />
                             </Grid>
 
-                            <Grid size={{ xs: 12, md: 6 }}>
+                            {/* ========================================================================= */}
+                            {/* HEADER SECTION (INFORMASI MASTER)                                        */}
+                            {/* ========================================================================= */}
+                            <Grid size={12} sx={{ mt: 1 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                                    Informasi Master / Induk (Header)
+                                </Typography>
+                                <Divider sx={{ my: 1 }} />
+                            </Grid>
+
+                            {/* 1. Pilih Sales Order */}
+                            <Grid size={12}>
                                 <Controller
                                     name="sales_order_id"
                                     control={control}
-                                    rules={{ required: 'Pilih Sales Order wajib diisi' }}
+                                    rules={{ required: 'Sales Order wajib dipilih' }}
                                     render={({ field }) => (
-                                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                            <TextField
-                                                {...field}
-                                                select
-                                                label="Sales Order"
-                                                fullWidth
-                                                error={!!errors.sales_order_id}
-                                                helperText={errors.sales_order_id?.message}
-                                                disabled={!!deliveryOrder}
-                                            >
-                                                {salesOrders.map(so => (
-                                                    <MenuItem key={so.id} value={so.id}>
-                                                        {so.order_no} - {so.customer_name} ({so.product_name})
-                                                    </MenuItem>
-                                                ))}
-                                                {deliveryOrder && !salesOrders.some(so => so.id === deliveryOrder.sales_order_id) && (
-                                                    <MenuItem key={deliveryOrder.sales_order_id} value={deliveryOrder.sales_order_id}>
-                                                        {deliveryOrder.so_number} - {deliveryOrder.customer_name} ({deliveryOrder.product_name})
-                                                    </MenuItem>
-                                                )}
-                                            </TextField>
-                                        </Box>
+                                        <TextField
+                                            {...field}
+                                            select
+                                            label="Sales Order"
+                                            fullWidth
+                                            error={!!errors.sales_order_id}
+                                            helperText={errors.sales_order_id?.message}
+                                            disabled={!!deliveryOrder || isLocked}
+                                            size="small"
+                                        >
+                                            {salesOrders.map(so => (
+                                                <MenuItem key={so.id} value={so.id}>
+                                                    {so.order_no} - {so.customer_name} ({so.product_name})
+                                                </MenuItem>
+                                            ))}
+                                            {deliveryOrder && !salesOrders.some(so => so.id === deliveryOrder.sales_order_id) && (
+                                                <MenuItem key={deliveryOrder.sales_order_id} value={deliveryOrder.sales_order_id}>
+                                                    {deliveryOrder.so_number} - {deliveryOrder.customer_name} ({deliveryOrder.product_name})
+                                                </MenuItem>
+                                            )}
+                                        </TextField>
                                     )}
                                 />
                             </Grid>
 
-                            <Grid size={{ xs: 12, md: 6 }}>
+                            {/* 2. Pilih Transporter (Enabled only after SO selected) */}
+                            <Grid size={12}>
+                                <Controller
+                                    name="transporter_id"
+                                    control={control}
+                                    rules={{ required: 'Transporter wajib dipilih' }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            select
+                                            label="Pilih Transporter"
+                                            fullWidth
+                                            error={!!errors.transporter_id}
+                                            helperText={errors.transporter_id?.message}
+                                            disabled={!selectedSOId || isLocked}
+                                            size="small"
+                                        >
+                                            {transporters.map(trans => (
+                                                <MenuItem key={trans.id} value={trans.id}>
+                                                    {trans.name}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
+                                />
+                            </Grid>
+
+                            {/* 3. Customer (Locked / Auto-populated) */}
+                            <Grid size={12}>
                                 <TextField
                                     label="Customer"
                                     value={selectedCustomerName}
@@ -854,10 +590,25 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                                     disabled
                                     InputLabelProps={{ shrink: true }}
                                     placeholder="Otomatis terisi"
+                                    size="small"
                                 />
                             </Grid>
 
-                            <Grid size={{ xs: 12, md: 6 }}>
+                            {/* 4. Perusahaan (Locked / Auto-populated) */}
+                            <Grid size={12}>
+                                <TextField
+                                    label="Perusahaan"
+                                    value={selectedCompany?.name || ''}
+                                    fullWidth
+                                    disabled
+                                    InputLabelProps={{ shrink: true }}
+                                    placeholder="Otomatis terisi"
+                                    size="small"
+                                />
+                            </Grid>
+
+                            {/* 5. Nama Produk untuk SJ */}
+                            <Grid size={12}>
                                 <Controller
                                     name="product_name_sj"
                                     control={control}
@@ -870,65 +621,225 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                                             error={!!errors.product_name_sj}
                                             helperText={errors.product_name_sj?.message}
                                             InputLabelProps={{ shrink: true }}
-                                            disabled={!!deliveryOrder}
+                                            disabled={!!deliveryOrder || isLocked}
+                                            size="small"
                                         />
                                     )}
                                 />
                             </Grid>
 
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <TextField
-                                    label="Perusahaan"
-                                    value={selectedCompany?.name || ''}
-                                    fullWidth
-                                    disabled
-                                    InputLabelProps={{ shrink: true }}
-                                    placeholder="Otomatis terisi"
+                            {/* ========================================================================= */}
+                            {/* DETAIL SECTION (INFORMASI BONGKAR MUAT & TIMBANGAN)                     */}
+                            {/* ========================================================================= */}
+                            <Grid size={12} sx={{ mt: 2 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                                    Informasi Bongkar Muat & Timbangan (Detail)
+                                </Typography>
+                                <Divider sx={{ my: 1 }} />
+                            </Grid>
+
+                            {/* 1. Pilih Produk Internal (Raw) */}
+                            <Grid size={12}>
+                                <Controller
+                                    name="internal_product_id"
+                                    control={control}
+                                    rules={{ required: 'Produk Internal wajib dipilih' }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            select
+                                            label="Produk Internal (Raw)"
+                                            fullWidth
+                                            error={!!errors.internal_product_id}
+                                            helperText={errors.internal_product_id?.message}
+                                            disabled={!selectedSOId || isLocked}
+                                            size="small"
+                                        >
+                                            {internalProducts.map(p => (
+                                                <MenuItem key={p.id} value={p.id}>
+                                                    {p.name}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
                                 />
                             </Grid>
 
-                            {/* Details Section */}
-                            <Grid size={12} sx={{ mt: 2 }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                                        Rincian Muatan Truk (Detail)
-                                    </Typography>
-                                </Box>
-                                <Divider sx={{ mb: 2 }} />
+                            {/* Warning Banner if product has no shipments */}
+                            {shipmentError && (
+                                <Grid size={12}>
+                                    <Alert severity="warning">
+                                        {shipmentError}
+                                    </Alert>
+                                </Grid>
+                            )}
+
+                            {/* 2. Pilih Vessel / Tongkang */}
+                            <Grid size={12}>
+                                <Controller
+                                    name="shipment_id"
+                                    control={control}
+                                    rules={{ required: 'Vessel/Tongkang wajib dipilih' }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            select
+                                            label="Pilih Vessel/Tongkang"
+                                            fullWidth
+                                            disabled={loadingShipments || !selectedInternalProductId || isLocked || shipments.length === 0}
+                                            error={!!errors.shipment_id}
+                                            helperText={errors.shipment_id?.message || (loadingShipments ? 'Memuat...' : '')}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                handleVesselChange(e.target.value);
+                                            }}
+                                            size="small"
+                                        >
+                                            {shipments.map(s => (
+                                                <MenuItem key={s.id} value={s.id}>
+                                                    {s.vessel_name} - {s.invoice_no}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
+                                />
                             </Grid>
 
-                            {/* Fields list */}
+                            {/* 3. No. Polisi */}
                             <Grid size={12}>
-                                <Stack spacing={3}>
-                                    {fields.map((field, index) => (
-                                        <DirectDeliveryOrderItemRow
-                                            key={field.id}
-                                            index={index}
-                                            control={control}
-                                            setValue={setValue}
-                                            getValues={getValues}
-                                            watch={watch}
-                                            remove={remove}
-                                            fieldsLength={fields.length}
-                                            internalProducts={internalProducts}
-                                            mode={mode}
-                                            scanningIndex={scanningIndex}
-                                            submitting={submitting}
-                                            handleScanTicket={handleScanTicket}
-                                            errors={errors}
+                                <Controller
+                                    name="truck_plate"
+                                    control={control}
+                                    rules={{ required: 'No. Polisi wajib diisi' }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            label="No. Polisi"
+                                            fullWidth
+                                            disabled={!selectedInternalProductId || isLocked}
+                                            placeholder="e.g. B 1234 XY"
+                                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                                            error={!!errors.truck_plate}
+                                            helperText={errors.truck_plate ? 'Wajib diisi' : ''}
+                                            size="small"
                                         />
-                                    ))}
-                                </Stack>
+                                    )}
+                                />
                             </Grid>
 
-                            {/* Weight Summary Footer */}
+                            {/* 4. Nomor Ticket */}
                             <Grid size={12}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: mode === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.05)', p: 2, borderRadius: '12px', border: '1px solid', borderColor: 'primary.main' }}>
-                                    <Typography variant="subtitle1" fontWeight="bold">Total Netto Akumulasi:</Typography>
-                                    <Typography variant="h6" color="primary" fontWeight="bold">
-                                        {totalNetWeight.toLocaleString('id-ID')} Kg ({(totalNetWeight / 1000).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT)
+                                <Controller
+                                    name="ticket_number"
+                                    control={control}
+                                    rules={{ required: 'Nomor Ticket wajib diisi' }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Nomor Ticket"
+                                            fullWidth
+                                            disabled={!selectedInternalProductId || isLocked}
+                                            placeholder="e.g. T-12345"
+                                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                                            error={!!errors.ticket_number}
+                                            helperText={errors.ticket_number ? 'Wajib diisi' : ''}
+                                            size="small"
+                                        />
+                                    )}
+                                />
+                            </Grid>
+
+                            {/* 5. Gross (Kg) */}
+                            <Grid size={12}>
+                                <Controller
+                                    name="gross_weight"
+                                    control={control}
+                                    rules={{ required: 'Gross wajib diisi & > 0', min: { value: 1, message: 'Gross harus > 0' } }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Gross (Kg)"
+                                            type="number"
+                                            fullWidth
+                                            disabled={!selectedInternalProductId || isLocked}
+                                            onChange={(e) => {
+                                                const val = Number(e.target.value);
+                                                field.onChange(val);
+                                                setValue('net_weight', Math.max(0, val - tare));
+                                            }}
+                                            error={!!errors.gross_weight}
+                                            helperText={errors.gross_weight?.message}
+                                            size="small"
+                                        />
+                                    )}
+                                />
+                            </Grid>
+
+                            {/* 6. Tare (Kg) */}
+                            <Grid size={12}>
+                                <Controller
+                                    name="tare_weight"
+                                    control={control}
+                                    rules={{ required: 'Tare wajib diisi & >= 0', min: { value: 0, message: 'Tare harus >= 0' } }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Tare (Kg)"
+                                            type="number"
+                                            fullWidth
+                                            disabled={!selectedInternalProductId || isLocked}
+                                            onChange={(e) => {
+                                                const val = Number(e.target.value);
+                                                field.onChange(val);
+                                                setValue('net_weight', Math.max(0, gross - val));
+                                            }}
+                                            error={!!errors.tare_weight}
+                                            helperText={errors.tare_weight?.message}
+                                            size="small"
+                                        />
+                                    )}
+                                />
+                            </Grid>
+
+                            {/* 7. Netto (Kg) (Read-only Display) */}
+                            <Grid size={12}>
+                                <Box sx={{
+                                    bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    textAlign: 'center',
+                                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                                    boxSizing: 'border-box'
+                                }}>
+                                    <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
+                                        Netto (Kg)
+                                    </Typography>
+                                    <Typography variant="h6" color="primary" fontWeight="bold" sx={{ mt: 0.5 }}>
+                                        {net.toLocaleString('id-ID')} Kg
                                     </Typography>
                                 </Box>
+                            </Grid>
+
+                            {/* 8. Foto OCR Scan & Preview */}
+                            <Grid size={12}>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        startIcon={<PhotoCamera />}
+                                        disabled={submitting || !selectedInternalProductId || isLocked}
+                                        onClick={() => setIsScannerOpen(true)}
+                                        sx={{ textTransform: 'none', borderStyle: 'dashed' }}
+                                    >
+                                        Scan Tiket Timbangan
+                                    </Button>
+
+                                    {photoUrl && (
+                                        <Box sx={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', border: '1px solid divider' }}>
+                                            <img src={photoUrl} alt="Ticket" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        </Box>
+                                    )}
+                                </Stack>
                             </Grid>
                         </Grid>
                     )}
@@ -945,8 +856,8 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                     </Button>
                     <Button
                         type="submit"
+                        disabled={submitting || loadingData || loadingItems || isLocked}
                         variant="contained"
-                        disabled={submitting || scanningIndex !== null || loadingData || loadingItems}
                         startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                         sx={{
                             borderRadius: '20px',
@@ -960,6 +871,12 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                 </DialogActions>
             </Box>
         </Dialog>
+        <ScannerHub
+            open={isScannerOpen}
+            onClose={() => setIsScannerOpen(false)}
+            onCapture={handleOcrCapture}
+        />
+        </>
     );
 };
 
