@@ -7,6 +7,8 @@ export const id = {
             products: 'Produk',
             procurement: 'Pengadaan',
             inventory: 'Inventaris',
+            inventory_dashboard: 'Dashboard Inventaris',
+            inventory_adjustment: 'Penyesuaian Stok',
             sales: 'Penjualan',
             sales_master: 'Master Penjualan',
             sales_direct_barge: 'Pengiriman Langsung',

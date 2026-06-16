@@ -15,7 +15,6 @@ import {
     Storage as MasterDataIcon,
     ShoppingCart as ProcurementIcon,
     Inventory as InventoryIcon,
-    AttachMoney as FinanceIcon,
     Settings as SettingsIcon,
     ExpandLess,
     ExpandMore,
@@ -57,7 +56,15 @@ const MENU_ITEMS: MenuItemInfo[] = [
         ]
     },
     { key: 'sidebar.procurement', path: '/shipments', icon: <ProcurementIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-    { key: 'sidebar.inventory', path: '/inventory', icon: <InventoryIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+    {
+        key: 'sidebar.inventory',
+        icon: <InventoryIcon />,
+        allowedRoles: [1, 2, 3, 4, 5, 6],
+        children: [
+            { key: 'sidebar.inventory_dashboard', path: '/inventory', icon: <DashboardIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.inventory_adjustment', path: '/inventory/adjustment', icon: <MasterDataIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] }
+        ]
+    },
     {
         key: 'sidebar.sales',
         icon: <ShoppingCartIcon />,
@@ -78,8 +85,9 @@ const MENU_ITEMS: MenuItemInfo[] = [
             { key: 'sidebar.monitoring', path: '/logistics/monitoring', icon: <MonitorIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
         ]
     },
-    */
+    /*
     { key: 'sidebar.finance', path: '/finance', icon: <FinanceIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+    */
     { key: 'sidebar.user_management', path: '/admin/users', icon: <AdminIcon />, allowedRoles: [8] },
     { key: 'sidebar.settings', path: '/settings', icon: <SettingsIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 7, 8] },
 ];

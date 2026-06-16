@@ -648,6 +648,9 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         if (!watchItems || watchItems.length === 0) {
             setTrukList([]);
             setWeightError(null);
+            setValue('gross_weight', 0 + adjustWeightValue);
+            setValue('tare_weight', 0);
+            setValue('net_weight', 0 + adjustWeightValue);
             return;
         }
 
@@ -701,14 +704,18 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
             setValue('type_blending', blendingVal);
         }
 
-        // Recalculate Sum(Gross), Sum(Tare), Sum(Netto) and auto-update Header fields
-        const sumGross = newTrukList.reduce((sum, item) => sum + (Number(item.gross_weight) || 0), 0);
-        const sumTare = newTrukList.reduce((sum, item) => sum + (Number(item.tare_weight) || 0), 0);
-        const sumNet = newTrukList.reduce((sum, item) => sum + (Number(item.net_weight) || 0), 0);
+        // Recalculate Last Truck Gross, First Truck Tare, and Total Netto and auto-update Header fields
+        const lastTruckGross = newTrukList.length > 0 ? (Number(newTrukList[newTrukList.length - 1].gross_weight) || 0) : 0;
+        const firstTare = newTrukList.length > 0 ? (Number(newTrukList[0].tare_weight) || 0) : 0;
 
-        setValue('gross_weight', sumGross + adjustWeightValue);
-        setValue('tare_weight', sumTare);
-        setValue('net_weight', sumNet + adjustWeightValue);
+        const headerGross = lastTruckGross + adjustWeightValue;
+        const headerTare = firstTare;
+        const headerNetto = headerGross - headerTare;
+
+        setValue('gross_weight', headerGross);
+        setValue('tare_weight', headerTare);
+        setValue('net_weight', headerNetto);
+
 
         // Header Mirroring: auto-fill plate and ticket number on the first truck input if not manually edited
         if (!isHeaderManuallyEdited && newTrukList.length > 0) {
@@ -909,8 +916,8 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         }
     };
 
-    // Calculate total accumulated netto weight displayed in the form summary (sum of all produk_net, which is equivalent to last truck's net)
-    const totalNetWeight = trukList?.reduce((sum, item) => sum + (Number(item.produk_net) || 0), 0) || 0;
+    // Calculate total accumulated netto weight displayed in the form summary (bound to header net_weight)
+    const totalNetWeight = watch('net_weight') || 0;
 
     return (
         <>
@@ -1214,16 +1221,9 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                             type="number"
                                                             label="Total Gross"
                                                             fullWidth
-                                                            disabled={isLocked || submitting}
+                                                            disabled={true}
                                                             size="small"
                                                             value={field.value !== undefined ? field.value : ''}
-                                                            onChange={(e) => {
-                                                                const val = Number(e.target.value) || 0;
-                                                                field.onChange(val);
-                                                                setIsHeaderManuallyEdited(true);
-                                                                const currentTare = Number(watch('tare_weight')) || 0;
-                                                                setValue('net_weight', Math.max(0, val - currentTare));
-                                                            }}
                                                             error={!!errors.gross_weight}
                                                             helperText={errors.gross_weight?.message}
                                                         />
@@ -1234,23 +1234,15 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                 <Controller
                                                     name="tare_weight"
                                                     control={control}
-                                                    rules={{ required: 'Wajib diisi', min: 0 }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             type="number"
                                                             label="Total Tare"
                                                             fullWidth
-                                                            disabled={isLocked || submitting}
+                                                            disabled={true}
                                                             size="small"
                                                             value={field.value !== undefined ? field.value : ''}
-                                                            onChange={(e) => {
-                                                                const val = Number(e.target.value) || 0;
-                                                                field.onChange(val);
-                                                                setIsHeaderManuallyEdited(true);
-                                                                const currentGross = Number(watch('gross_weight')) || 0;
-                                                                setValue('net_weight', Math.max(0, currentGross - val));
-                                                            }}
                                                             error={!!errors.tare_weight}
                                                             helperText={errors.tare_weight?.message}
                                                         />
@@ -1261,21 +1253,15 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                 <Controller
                                                     name="net_weight"
                                                     control={control}
-                                                    rules={{ required: 'Wajib diisi', min: 0 }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             type="number"
                                                             label="Total Netto"
                                                             fullWidth
-                                                            disabled={isLocked || submitting}
+                                                            disabled={true}
                                                             size="small"
                                                             value={field.value !== undefined ? field.value : ''}
-                                                            onChange={(e) => {
-                                                                const val = Number(e.target.value) || 0;
-                                                                field.onChange(val);
-                                                                setIsHeaderManuallyEdited(true);
-                                                            }}
                                                             error={!!errors.net_weight}
                                                             helperText={errors.net_weight?.message}
                                                         />

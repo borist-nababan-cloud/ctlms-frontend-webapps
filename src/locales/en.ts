@@ -7,6 +7,8 @@ export const en = {
             products: 'Products',
             procurement: 'Procurement',
             inventory: 'Inventory',
+            inventory_dashboard: 'Inventory Dashboard',
+            inventory_adjustment: 'Inventory Adjustment',
             sales: 'Sales',
             sales_master: 'Master Sales',
             sales_direct_barge: 'Direct Barge Delivery',
