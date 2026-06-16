@@ -272,6 +272,7 @@ const StockpileDelivery: React.FC = () => {
                     <thead>
                         <tr style={{ borderBottom: '1px solid rgba(128,128,128,0.2)', textAlign: 'left', fontWeight: 'bold' }}>
                             <th style={{ padding: '8px' }}>No. Polisi</th>
+                            <th style={{ padding: '8px' }}>No. Ticket</th>
                             <th style={{ padding: '8px' }}>Produk Internal</th>
                             <th style={{ padding: '8px' }}>Tipe Produksi</th>
                             <th style={{ padding: '8px' }}>Blending</th>
@@ -286,6 +287,7 @@ const StockpileDelivery: React.FC = () => {
                             row.original.items.map((item: any, idx: number) => (
                                 <tr key={item.id || idx} style={{ borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
                                     <td style={{ padding: '8px', fontWeight: 'bold' }}>{item.truck_plate || '-'}</td>
+                                    <td style={{ padding: '8px' }}>{item.ticket_number || '-'}</td>
                                     <td style={{ padding: '8px' }}>{item.internal_product?.name || '-'}</td>
                                     <td style={{ padding: '8px' }}>{item.type_production?.nama_type || '-'}</td>
                                     <td style={{ padding: '8px' }}>{item.blending?.nama_blending || '-'}</td>

@@ -21,7 +21,21 @@ export default function MainLayout() {
 
     const { profile } = useAuth();
     const { mode, toggleColorMode } = useColorMode();
-    const appName = import.meta.env.VITE_APP_NAME || 'CoalLogix System';
+
+    const getValidColor = (color: string | null | undefined): string | null => {
+        if (!color) return null;
+        let trimmed = color.trim();
+        if (!trimmed.startsWith('#')) {
+            trimmed = '#' + trimmed;
+        }
+        return /^#[0-9A-F]{6}$/i.test(trimmed) || /^#[0-9A-F]{3}$/i.test(trimmed) ? trimmed : null;
+    };
+
+    const userHexColor = getValidColor(profile?.hexColor);
+    const headerBgColor = userHexColor || theme.palette.primary.main;
+    const headerTextColor = theme.palette.getContrastText(headerBgColor);
+
+    const appName = profile?.companyName || import.meta.env.VITE_APP_NAME || 'CoalLogix System';
 
     const handleDrawerToggle = () => {
         if (isMobile) {
@@ -40,8 +54,8 @@ export default function MainLayout() {
                 position="fixed"
                 sx={{
                     zIndex: (theme) => theme.zIndex.drawer + 1,
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText'
+                    backgroundColor: headerBgColor,
+                    color: headerTextColor
                 }}
                 elevation={0}
             >
@@ -58,7 +72,7 @@ export default function MainLayout() {
 
                     <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
                         {/* Logo Placeholder or Icon could go here */}
-                        <Typography variant="h6" noWrap component="div">
+                        <Typography variant="h6" noWrap component="div" sx={{ color: 'inherit' }}>
                             {appName}
                         </Typography>
                     </Box>
@@ -72,7 +86,7 @@ export default function MainLayout() {
                         </Tooltip>
 
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, color: 'inherit' }}>
                                 {profile?.email}
                             </Typography>
                             <Avatar

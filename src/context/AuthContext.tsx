@@ -3,10 +3,15 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import type { UserProfile } from '../types/supabase';
 
+export interface UserProfileWithBranding extends UserProfile {
+    companyName?: string | null;
+    hexColor?: string | null;
+}
+
 interface AuthContextType {
     session: Session | null;
     user: User | null;
-    profile: UserProfile | null;
+    profile: UserProfileWithBranding | null;
     loading: boolean;
     authError: string | null;
     signOut: () => Promise<void>;
@@ -26,7 +31,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [user, setUser] = useState<User | null>(null);
-    const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [profile, setProfile] = useState<UserProfileWithBranding | null>(null);
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
     const fetchingUuidRef = useRef<string | null>(null);
@@ -49,7 +54,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
             const { data, error } = await supabase
                 .from('user_profiles')
-                .select('*')
+                .select(`
+                    *,
+                    master_companies (
+                        name,
+                        hex_color
+                    )
+                `)
                 .eq('uuid', currentUser.id)
                 .maybeSingle();
 
@@ -61,14 +72,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 // For now, allow rendering but profile will be null
             } else if (data) {
                 // Scenario B: Profile Exists
-                const userProfile = data as UserProfile;
-                if (userProfile.user_role === 7) {
+                const rawProfile = data as any;
+
+                if (rawProfile.user_role === 7) {
                     // Role 7 logic...
                     // Note: You can keep the auto-logout if strict, or just warn
                     await supabase.auth.signOut();
                     setAuthError('UNASSIGNED_ROLE');
                     return;
                 }
+                
+                const companyData = Array.isArray(rawProfile.master_companies)
+                    ? rawProfile.master_companies[0]
+                    : rawProfile.master_companies;
+                
+                const companyName = companyData?.name || null;
+                const hexColor = companyData?.hex_color || null;
+                
+                const userProfile: UserProfileWithBranding = {
+                    uuid: rawProfile.uuid,
+                    email: rawProfile.email,
+                    user_role: rawProfile.user_role,
+                    wh_id: rawProfile.wh_id,
+                    company_id: rawProfile.company_id,
+                    real_name: rawProfile.real_name,
+                    created_at: rawProfile.created_at,
+                    updated_at: rawProfile.updated_at,
+                    companyName,
+                    hexColor
+                };
                 setProfile(userProfile);
             } else {
                 // Scenario A: Profile Does Not Exist (First Login)

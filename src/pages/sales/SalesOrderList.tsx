@@ -172,7 +172,7 @@ const SalesOrderList = () => {
         <Container maxWidth="xl">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    Sales Orders / Penjualan
+                    Penjualan / Outbound
                 </Typography>
                 <Button
                     variant="contained"

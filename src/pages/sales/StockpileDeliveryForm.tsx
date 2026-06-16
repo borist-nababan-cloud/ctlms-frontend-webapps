@@ -32,7 +32,7 @@ import { containsHtmlOrScript } from '../../lib/sanitizer';
 import { useColorMode } from '../../context/ThemeContext';
 import { deliveryService } from '../../lib/deliveryService';
 import { masterService } from '../../lib/masterService';
-import type { SalesOrderDetailed, Shipment, MasterProduct } from '../../types/supabase';
+import type { SalesOrderDetailed, Shipment, MasterProduct, MasterCompany, MasterPartner } from '../../types/supabase';
 import ScannerHub from '../../components/common/ScannerHub';
 
 interface DeliveryOrderItemFormValue {
@@ -53,6 +53,8 @@ interface DeliveryOrderItemFormValue {
 
 interface StockpileDeliveryFormValues {
     sales_order_id: string;
+    company_id: string;
+    transporter_id: string;
     product_name_sj: string;
     truck_plate?: string;
     ticket_number?: string;
@@ -60,6 +62,7 @@ interface StockpileDeliveryFormValues {
     gross_weight?: number;
     tare_weight?: number;
     net_weight?: number;
+    adjust_weight?: number | null;
     items: DeliveryOrderItemFormValue[];
 }
 
@@ -441,16 +444,19 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
     const { mode } = useColorMode();
     const { profile: loggedInProfile } = useAuth();
 
-    // Dropdown Data States
     const [salesOrders, setSalesOrders] = useState<SalesOrderDetailed[]>([]);
     const [internalProducts, setInternalProducts] = useState<MasterProduct[]>([]);
     const [productionTypes, setProductionTypes] = useState<any[]>([]);
+    const [companies, setCompanies] = useState<MasterCompany[]>([]);
+    const [transporters, setTransporters] = useState<MasterPartner[]>([]);
     
     // UI Loading / Submitting States
     const [loadingData, setLoadingData] = useState(false);
     const [loadingItems, setLoadingItems] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [activeScannerIndex, setActiveScannerIndex] = useState<number | null>(null);
+    const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
+    const [tempAdjustWeight, setTempAdjustWeight] = useState<number>(0);
     const [error, setError] = useState<string | null>(null);
 
     // Dynamic state for validated trucks
@@ -461,13 +467,15 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
     const isLocked = Boolean(deliveryOrder?.sales_order?.is_completed || deliveryOrder?.is_completed);
 
     // Selected Sales Order Info
-    const [selectedCompany, setSelectedCompany] = useState<any>(null);
     const [selectedCustomerName, setSelectedCustomerName] = useState<string>('');
     const [isBlendingManuallyEdited, setIsBlendingManuallyEdited] = useState(false);
+    const [isHeaderManuallyEdited, setIsHeaderManuallyEdited] = useState(false);
 
     const { control, handleSubmit, watch, setValue, getValues, reset, formState: { errors } } = useForm<StockpileDeliveryFormValues>({
         defaultValues: {
             sales_order_id: '',
+            company_id: '',
+            transporter_id: '',
             product_name_sj: '',
             truck_plate: '',
             ticket_number: '',
@@ -475,6 +483,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
             gross_weight: 0,
             tare_weight: 0,
             net_weight: 0,
+            adjust_weight: 0,
             items: [
                 {
                     internal_product_id: '',
@@ -506,14 +515,18 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         const loadDropdowns = async () => {
             try {
                 setLoadingData(true);
-                const [orders, rawProducts, prodTypes] = await Promise.all([
+                const [orders, rawProducts, prodTypes, allCompanies, allPartners] = await Promise.all([
                     deliveryService.getActiveSalesOrders(),
                     deliveryService.getInternalProducts(),
-                    deliveryService.getProductionTypes()
+                    deliveryService.getProductionTypes(),
+                    masterService.getCompanies(),
+                    masterService.getPartners()
                 ]);
                 setSalesOrders(orders);
                 setInternalProducts(rawProducts);
                 setProductionTypes(prodTypes);
+                setCompanies(allCompanies);
+                setTransporters(allPartners.filter(p => p.type === 'TRANSPORTER'));
             } catch (err) {
                 console.error('Error loading form metadata:', err);
                 setError('Gagal memuat data master untuk form.');
@@ -537,6 +550,8 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                     const itemsData = await deliveryService.getDeliveryOrderItems(deliveryOrder.id);
                     reset({
                         sales_order_id: deliveryOrder.sales_order_id || '',
+                        company_id: deliveryOrder.company_id || '',
+                        transporter_id: deliveryOrder.transporter_id || '',
                         product_name_sj: deliveryOrder.published_product_name || '',
                         truck_plate: deliveryOrder.truck_plate || '',
                         ticket_number: deliveryOrder.ticket_number || '',
@@ -544,6 +559,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                         gross_weight: Number(deliveryOrder.gross_weight) || 0,
                         tare_weight: Number(deliveryOrder.tare_weight) || 0,
                         net_weight: Number(deliveryOrder.net_weight) || 0,
+                        adjust_weight: Number(deliveryOrder.adjust_weight) || 0,
                         items: itemsData.map(item => ({
                             id: item.id,
                             internal_product_id: item.internal_product_id || '',
@@ -562,13 +578,10 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                     });
 
                     setIsBlendingManuallyEdited(true);
+                    setIsHeaderManuallyEdited(true);
 
-                    // Set Customer and Company manually since the SO selection effect won't fire if the SO isn't in active lists
+                    // Set Customer manually since the SO selection effect won't fire if the SO isn't in active lists
                     setSelectedCustomerName(deliveryOrder.customer_name || '');
-                    if (deliveryOrder.company_id) {
-                        const comp = await masterService.getCompanyById(deliveryOrder.company_id);
-                        setSelectedCompany(comp);
-                    }
                 } catch (err) {
                     console.error('Error loading delivery order items:', err);
                     setError('Gagal memuat item timbangan.');
@@ -578,6 +591,8 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
             } else if (open) {
                 reset({
                     sales_order_id: '',
+                    company_id: '',
+                    transporter_id: '',
                     product_name_sj: '',
                     truck_plate: '',
                     ticket_number: '',
@@ -585,6 +600,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                     gross_weight: 0,
                     tare_weight: 0,
                     net_weight: 0,
+                    adjust_weight: 0,
                     items: [
                         {
                             internal_product_id: '',
@@ -602,8 +618,8 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                     ]
                 });
                 setSelectedCustomerName('');
-                setSelectedCompany(null);
                 setIsBlendingManuallyEdited(false);
+                setIsHeaderManuallyEdited(false);
             }
         };
 
@@ -619,23 +635,13 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
             setSelectedCustomerName(so.customer_name || '-');
             if (!deliveryOrder) {
                 setValue('product_name_sj', so.product_name || '');
+                setValue('company_id', so.company_id || '');
             }
 
-            const fetchCompany = async () => {
-                if (so.company_id) {
-                    try {
-                        const companyInfo = await masterService.getCompanyById(so.company_id);
-                        setSelectedCompany(companyInfo);
-                    } catch (err) {
-                        console.error('Error fetching company details:', err);
-                    }
-                } else {
-                    setSelectedCompany(null);
-                }
-            };
-            fetchCompany();
         }
     }, [selectedSOId, salesOrders, setValue, deliveryOrder]);
+
+    const adjustWeightValue = Number(watch('adjust_weight')) || 0;
 
     // Effect to calculate produk_net, validation logic, auto-blending types, and header mirroring
     useEffect(() => {
@@ -695,26 +701,26 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
             setValue('type_blending', blendingVal);
         }
 
-        // Header Mirroring: always update header fields with last truck values
-        if (newTrukList.length > 0) {
-            const lastItem = newTrukList[newTrukList.length - 1];
-            if (lastItem.truck_plate !== undefined) {
-                setValue('truck_plate', lastItem.truck_plate.trim().toUpperCase());
+        // Recalculate Sum(Gross), Sum(Tare), Sum(Netto) and auto-update Header fields
+        const sumGross = newTrukList.reduce((sum, item) => sum + (Number(item.gross_weight) || 0), 0);
+        const sumTare = newTrukList.reduce((sum, item) => sum + (Number(item.tare_weight) || 0), 0);
+        const sumNet = newTrukList.reduce((sum, item) => sum + (Number(item.net_weight) || 0), 0);
+
+        setValue('gross_weight', sumGross + adjustWeightValue);
+        setValue('tare_weight', sumTare);
+        setValue('net_weight', sumNet + adjustWeightValue);
+
+        // Header Mirroring: auto-fill plate and ticket number on the first truck input if not manually edited
+        if (!isHeaderManuallyEdited && newTrukList.length > 0) {
+            const firstItem = newTrukList[0];
+            if (firstItem.truck_plate !== undefined) {
+                setValue('truck_plate', firstItem.truck_plate.trim().toUpperCase());
             }
-            if (lastItem.ticket_number !== undefined) {
-                setValue('ticket_number', lastItem.ticket_number.trim().toUpperCase());
-            }
-            if (lastItem.gross_weight !== undefined) {
-                setValue('gross_weight', Number(lastItem.gross_weight) || 0);
-            }
-            if (lastItem.tare_weight !== undefined) {
-                setValue('tare_weight', Number(lastItem.tare_weight) || 0);
-            }
-            if (lastItem.net_weight !== undefined) {
-                setValue('net_weight', Number(lastItem.net_weight) || 0);
+            if (firstItem.ticket_number !== undefined) {
+                setValue('ticket_number', firstItem.ticket_number.trim().toUpperCase());
             }
         }
-    }, [watchItems, setValue, isBlendingManuallyEdited]);
+    }, [watchItems, adjustWeightValue, setValue, isBlendingManuallyEdited, isHeaderManuallyEdited]);
 
     // OCR data capture handler from ScannerHub
     const handleOcrCaptureForTruck = (result: any, index: number) => {
@@ -733,6 +739,11 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         }
         
         setValue(`items.${index}.net_weight`, Math.max(0, currentGross - currentTare));
+    };
+
+    const handleSaveAdjustment = () => {
+        setValue('adjust_weight', tempAdjustWeight);
+        setIsAdjustDialogOpen(false);
     };
 
     // Form onSubmit
@@ -795,15 +806,14 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
             }
         }
 
-        // Validate header plate and ticket number from the last truck
-        const lastDetailItem = data.items[data.items.length - 1] || {};
-        if (!lastDetailItem.truck_plate?.trim()) {
-            setError('No. Polisi (Induk) wajib terisi (dari truk terakhir).');
+        // Validate header plate and ticket number
+        if (!data.truck_plate?.trim()) {
+            setError('No. Polisi (Induk) wajib terisi.');
             setSubmitting(false);
             return;
         }
-        if (!lastDetailItem.ticket_number?.trim()) {
-            setError('Nomor Ticket (Induk) wajib terisi (dari truk terakhir).');
+        if (!data.ticket_number?.trim()) {
+            setError('Nomor Ticket (Induk) wajib terisi.');
             setSubmitting(false);
             return;
         }
@@ -863,20 +873,21 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                 };
             });
 
-            // Header weights and values are ALWAYS populated from the last item in the detail list
-            const lastItem = itemsPayload[itemsPayload.length - 1] || {};
+            // Header weights and values are populated from form state
             const headerPayload = {
                 sales_order_id: data.sales_order_id,
                 published_product_name: trimmedProductNameSj,
-                company_id: so.company_id,
+                company_id: data.company_id || so.company_id,
+                transporter_id: data.transporter_id || null,
                 created_by: loggedInProfile?.uuid || null,
                 delivery_type: deliveryType,
-                truck_plate: lastItem.truck_plate || null,
-                ticket_number: lastItem.ticket_number || null,
-                gross_weight: Number(lastItem.gross_weight) || 0,
-                tare_weight: Number(lastItem.tare_weight) || 0,
-                net_weight: Number(lastItem.net_weight) || 0,
-                type_blending: (data.type_blending || 'NONE') as 'NONE' | 'BLENDING TUMPUK' | 'BLENDING BAWAH' | null
+                truck_plate: data.truck_plate?.trim().toUpperCase() || null,
+                ticket_number: data.ticket_number?.trim().toUpperCase() || null,
+                gross_weight: Number(data.gross_weight) || 0,
+                tare_weight: Number(data.tare_weight) || 0,
+                net_weight: Number(data.net_weight) || 0,
+                type_blending: (data.type_blending || 'NONE') as 'NONE' | 'BLENDING TUMPUK' | 'BLENDING BAWAH' | null,
+                adjust_weight: Number(data.adjust_weight) || 0
             };
 
             let savedHeader;
@@ -954,6 +965,18 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                 <Divider sx={{ mb: 2 }} />
                             </Grid>
 
+                            {/* No. Surat Jalan */}
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <TextField
+                                    label="No. Surat Jalan"
+                                    value={deliveryOrder ? deliveryOrder.sj_number : 'Otomatis'}
+                                    fullWidth
+                                    disabled
+                                    InputLabelProps={{ shrink: true }}
+                                    size="small"
+                                />
+                            </Grid>
+
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <Controller
                                     name="sales_order_id"
@@ -966,6 +989,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                 select
                                                 label="Sales Order"
                                                 fullWidth
+                                                size="small"
                                                 error={!!errors.sales_order_id}
                                                 helperText={errors.sales_order_id?.message}
                                                 disabled={!!deliveryOrder || isLocked}
@@ -994,6 +1018,33 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                     disabled
                                     InputLabelProps={{ shrink: true }}
                                     placeholder="Otomatis terisi"
+                                    size="small"
+                                />
+                            </Grid>
+
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Controller
+                                    name="company_id"
+                                    control={control}
+                                    rules={{ required: 'Pilih Perusahaan wajib diisi' }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            select
+                                            label="Pilih Perusahaan"
+                                            fullWidth
+                                            size="small"
+                                            error={!!errors.company_id}
+                                            helperText={errors.company_id?.message}
+                                            disabled={!!selectedSOId || isLocked || submitting}
+                                        >
+                                            {companies.map(comp => (
+                                                <MenuItem key={comp.id} value={comp.id}>
+                                                    {comp.name}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
                                 />
                             </Grid>
 
@@ -1011,19 +1062,35 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                             helperText={errors.product_name_sj?.message}
                                             InputLabelProps={{ shrink: true }}
                                             disabled={!!deliveryOrder || isLocked}
+                                            size="small"
                                         />
                                     )}
                                 />
                             </Grid>
 
                             <Grid size={{ xs: 12, md: 6 }}>
-                                <TextField
-                                    label="Perusahaan"
-                                    value={selectedCompany?.name || ''}
-                                    fullWidth
-                                    disabled
-                                    InputLabelProps={{ shrink: true }}
-                                    placeholder="Otomatis terisi"
+                                <Controller
+                                    name="transporter_id"
+                                    control={control}
+                                    rules={{ required: 'Pilih Transporter wajib diisi' }}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            select
+                                            label="Pilih Transporter"
+                                            fullWidth
+                                            size="small"
+                                            error={!!errors.transporter_id}
+                                            helperText={errors.transporter_id?.message}
+                                            disabled={isLocked || submitting}
+                                        >
+                                            {transporters.map(trans => (
+                                                <MenuItem key={trans.id} value={trans.id}>
+                                                    {trans.name}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
                                 />
                             </Grid>
 
@@ -1037,23 +1104,52 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                         bgcolor: mode === 'dark' ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.02)',
                                         mb: 1
                                     }}>
-                                        <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>
-                                            Informasi Master / Induk (Pengiriman Stock Pile)
-                                        </Typography>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                            <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>
+                                                Informasi Master / Induk (Pengiriman Stock Pile)
+                                            </Typography>
+                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                {adjustWeightValue !== 0 && (
+                                                    <Typography variant="caption" color="secondary" sx={{ fontWeight: 'bold' }}>
+                                                        (Adjustment: {adjustWeightValue > 0 ? `+${adjustWeightValue}` : adjustWeightValue} Kg)
+                                                    </Typography>
+                                                )}
+                                                <Button
+                                                    variant="outlined"
+                                                    size="small"
+                                                    disabled={isLocked || submitting}
+                                                    onClick={() => {
+                                                        const currentAdjust = Number(getValues('adjust_weight')) || 0;
+                                                        setTempAdjustWeight(currentAdjust);
+                                                        setIsAdjustDialogOpen(true);
+                                                    }}
+                                                    sx={{ textTransform: 'none', borderRadius: '20px' }}
+                                                >
+                                                    Adjustment Weight
+                                                </Button>
+                                            </Stack>
+                                        </Box>
                                         <Grid container spacing={2}>
                                             <Grid size={{ xs: 12, md: 4 }}>
                                                 <Controller
                                                     name="truck_plate"
                                                     control={control}
+                                                    rules={{ required: 'No. Polisi Induk wajib diisi' }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             label="No Polisi (Induk)"
                                                             fullWidth
-                                                            disabled
+                                                            disabled={isLocked || submitting}
                                                             placeholder="No Polisi"
                                                             size="small"
                                                             value={field.value || ''}
+                                                            onChange={(e) => {
+                                                                field.onChange(e.target.value.toUpperCase());
+                                                                setIsHeaderManuallyEdited(true);
+                                                            }}
+                                                            error={!!errors.truck_plate}
+                                                            helperText={errors.truck_plate?.message}
                                                         />
                                                     )}
                                                 />
@@ -1062,15 +1158,22 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                 <Controller
                                                     name="ticket_number"
                                                     control={control}
+                                                    rules={{ required: 'Nomor Ticket Induk wajib diisi' }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             label="Nomor Ticket (Induk)"
                                                             fullWidth
-                                                            disabled
+                                                            disabled={isLocked || submitting}
                                                             placeholder="Nomor Ticket"
                                                             size="small"
                                                             value={field.value || ''}
+                                                            onChange={(e) => {
+                                                                field.onChange(e.target.value.toUpperCase());
+                                                                setIsHeaderManuallyEdited(true);
+                                                            }}
+                                                            error={!!errors.ticket_number}
+                                                            helperText={errors.ticket_number?.message}
                                                         />
                                                     )}
                                                 />
@@ -1085,7 +1188,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                             select
                                                             label="Tipe Blending"
                                                             fullWidth
-                                                            disabled={trukList.length <= 1}
+                                                            disabled={trukList.length <= 1 || isLocked || submitting}
                                                             size="small"
                                                             value={field.value || 'NONE'}
                                                             onChange={(e) => {
@@ -1104,15 +1207,25 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                 <Controller
                                                     name="gross_weight"
                                                     control={control}
+                                                    rules={{ required: 'Wajib diisi', min: 0 }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             type="number"
                                                             label="Total Gross"
                                                             fullWidth
-                                                            disabled
+                                                            disabled={isLocked || submitting}
                                                             size="small"
                                                             value={field.value !== undefined ? field.value : ''}
+                                                            onChange={(e) => {
+                                                                const val = Number(e.target.value) || 0;
+                                                                field.onChange(val);
+                                                                setIsHeaderManuallyEdited(true);
+                                                                const currentTare = Number(watch('tare_weight')) || 0;
+                                                                setValue('net_weight', Math.max(0, val - currentTare));
+                                                            }}
+                                                            error={!!errors.gross_weight}
+                                                            helperText={errors.gross_weight?.message}
                                                         />
                                                     )}
                                                 />
@@ -1121,15 +1234,25 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                 <Controller
                                                     name="tare_weight"
                                                     control={control}
+                                                    rules={{ required: 'Wajib diisi', min: 0 }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             type="number"
                                                             label="Total Tare"
                                                             fullWidth
-                                                            disabled
+                                                            disabled={isLocked || submitting}
                                                             size="small"
                                                             value={field.value !== undefined ? field.value : ''}
+                                                            onChange={(e) => {
+                                                                const val = Number(e.target.value) || 0;
+                                                                field.onChange(val);
+                                                                setIsHeaderManuallyEdited(true);
+                                                                const currentGross = Number(watch('gross_weight')) || 0;
+                                                                setValue('net_weight', Math.max(0, currentGross - val));
+                                                            }}
+                                                            error={!!errors.tare_weight}
+                                                            helperText={errors.tare_weight?.message}
                                                         />
                                                     )}
                                                 />
@@ -1138,15 +1261,23 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                                 <Controller
                                                     name="net_weight"
                                                     control={control}
+                                                    rules={{ required: 'Wajib diisi', min: 0 }}
                                                     render={({ field }) => (
                                                         <TextField
                                                             {...field}
                                                             type="number"
                                                             label="Total Netto"
                                                             fullWidth
-                                                            disabled
+                                                            disabled={isLocked || submitting}
                                                             size="small"
                                                             value={field.value !== undefined ? field.value : ''}
+                                                            onChange={(e) => {
+                                                                const val = Number(e.target.value) || 0;
+                                                                field.onChange(val);
+                                                                setIsHeaderManuallyEdited(true);
+                                                            }}
+                                                            error={!!errors.net_weight}
+                                                            helperText={errors.net_weight?.message}
                                                         />
                                                     )}
                                                 />
@@ -1261,6 +1392,25 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                 }
             }}
         />
+        <Dialog open={isAdjustDialogOpen} onClose={() => setIsAdjustDialogOpen(false)}>
+            <DialogTitle sx={{ fontWeight: 'bold' }}>Input Adjustment Weight</DialogTitle>
+            <DialogContent sx={{ pt: 1 }}>
+                <TextField
+                    autoFocus
+                    label="Adjustment Weight (Kg)"
+                    type="number"
+                    fullWidth
+                    size="small"
+                    value={tempAdjustWeight}
+                    onChange={(e) => setTempAdjustWeight(Number(e.target.value) || 0)}
+                    sx={{ mt: 1 }}
+                />
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={() => setIsAdjustDialogOpen(false)} variant="outlined" color="inherit" size="small" sx={{ borderRadius: '20px', textTransform: 'none' }}>Batal</Button>
+                <Button onClick={handleSaveAdjustment} variant="contained" color="primary" size="small" sx={{ borderRadius: '20px', textTransform: 'none' }}>Simpan</Button>
+            </DialogActions>
+        </Dialog>
         </>
     );
 };

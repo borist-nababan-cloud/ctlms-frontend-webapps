@@ -76,11 +76,11 @@ const InventoryDashboard = () => {
 
     // Columns: Current Stock
     const currentColumns = useMemo<MRT_ColumnDef<InventoryCurrent>[]>(() => [
-        { accessorKey: 'sku_code', header: 'SKU Code', size: 120 },
-        { accessorKey: 'product_name', header: 'Product Name', size: 200 },
+        { accessorKey: 'sku_code', header: 'Kode SKU', size: 120 },
+        { accessorKey: 'product_name', header: 'Nama Produk', size: 200 },
         {
             accessorKey: 'current_stock_kg',
-            header: 'Stock (Kg)',
+            header: 'Stok (Kg)',
             size: 150,
             Cell: ({ cell }) => (
                 <span style={{ fontWeight: 'bold', color: '#4caf50' }}>
@@ -90,7 +90,7 @@ const InventoryDashboard = () => {
         },
         {
             accessorKey: 'current_stock_mt', // Virtual accessor, calculate in render
-            header: 'Stock (MT)',
+            header: 'Stok (MT)',
             size: 150,
             Cell: ({ row }) => {
                 const kg = row.original.current_stock_kg || 0;
@@ -103,13 +103,13 @@ const InventoryDashboard = () => {
     const historyColumns = useMemo<MRT_ColumnDef<any>[]>(() => [
         {
             accessorKey: 'created_at',
-            header: 'Date',
+            header: 'Tanggal',
             size: 180,
             Cell: ({ cell }) => new Date(cell.getValue<string>()).toLocaleString('id-ID'),
         },
         {
             accessorKey: 'transaction_type',
-            header: 'Type',
+            header: 'Tipe',
             size: 150,
             Cell: ({ cell }) => {
                 const type = cell.getValue<string>();
@@ -121,10 +121,10 @@ const InventoryDashboard = () => {
                 return <Chip label={type} color={color} size="small" />;
             },
         },
-        { accessorKey: 'master_products.name', header: 'Product', size: 200 },
+        { accessorKey: 'master_products.name', header: 'Produk', size: 200 },
         {
             accessorKey: 'qty_change',
-            header: 'Qty Change (Kg)',
+            header: 'Perubahan Qty (Kg)',
             size: 150,
             Cell: ({ cell }) => {
                 const value = cell.getValue<number>();
@@ -136,7 +136,7 @@ const InventoryDashboard = () => {
                 );
             }
         },
-        { accessorKey: 'notes', header: 'Notes', size: 250 }
+        { accessorKey: 'notes', header: 'Catatan', size: 250 }
     ], []);
 
     // Common Table Options
@@ -201,17 +201,17 @@ const InventoryDashboard = () => {
         <Container maxWidth="xl" sx={{ py: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    Inventory / Dashboard
+                    Inventaris / Dasbor
                 </Typography>
                 <Button startIcon={<Refresh />} onClick={loadData} disabled={loading}>
-                    Refresh
+                    Segarkan
                 </Button>
             </Box>
 
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-                    <Tab label="Current Stock" />
-                    <Tab label="Stock History" />
+                    <Tab label="Stok Saat Ini" />
+                    <Tab label="Riwayat Stok" />
                 </Tabs>
             </Box>
 

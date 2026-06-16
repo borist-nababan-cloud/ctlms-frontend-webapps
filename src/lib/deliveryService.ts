@@ -170,6 +170,7 @@ export const deliveryService = {
                     do_id: doId,
                     internal_product_id: item.internal_product_id,
                     truck_plate: item.truck_plate.trim().toUpperCase(),
+                    ticket_number: item.ticket_number ? item.ticket_number.trim().toUpperCase() : null,
                     gross_weight: Number(item.gross_weight) || 0,
                     tare_weight: Number(item.tare_weight) || 0,
                     net_weight: Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0)),
@@ -230,17 +231,6 @@ export const deliveryService = {
 
         if (headerError) throw headerError;
 
-        // Fetch existing items to log their IDs before deletion
-        const { data: existingItems, error: fetchError } = await supabase
-            .from('delivery_order_items')
-            .select('id')
-            .eq('do_id', doId);
-
-        if (!fetchError && existingItems) {
-            existingItems.forEach(item => {
-                console.log("Menghapus item ID:", item.id);
-            });
-        }
 
         const { error: deleteError } = await supabase
             .from('delivery_order_items')
@@ -262,6 +252,7 @@ export const deliveryService = {
                     do_id: doId,
                     internal_product_id: item.internal_product_id,
                     truck_plate: item.truck_plate.trim().toUpperCase(),
+                    ticket_number: item.ticket_number ? item.ticket_number.trim().toUpperCase() : null,
                     gross_weight: Number(item.gross_weight) || 0,
                     tare_weight: Number(item.tare_weight) || 0,
                     net_weight: Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0)),

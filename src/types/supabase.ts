@@ -208,6 +208,7 @@ export interface DeliveryOrderItem {
     type_production_id: string | null; // uuid
     blending_id: string | null; // uuid
     truck_plate: string | null;
+    ticket_number?: string | null;
     gross_weight: number | null;
     tare_weight: number | null;
     net_weight: number | null;
