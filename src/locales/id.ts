@@ -9,6 +9,7 @@ export const id = {
             inventory: 'Inventaris',
             inventory_dashboard: 'Dashboard Inventaris',
             inventory_adjustment: 'Penyesuaian Stok',
+            inventory_tcp: 'Input TCP (Konsolidasi Stok)',
             sales: 'Penjualan',
             sales_master: 'Master Penjualan',
             sales_direct_barge: 'Pengiriman Langsung',

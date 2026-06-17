@@ -9,6 +9,7 @@ export const en = {
             inventory: 'Inventory',
             inventory_dashboard: 'Inventory Dashboard',
             inventory_adjustment: 'Inventory Adjustment',
+            inventory_tcp: 'TCP Input (Stock Consolidation)',
             sales: 'Sales',
             sales_master: 'Master Sales',
             sales_direct_barge: 'Direct Barge Delivery',

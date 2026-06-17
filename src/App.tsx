@@ -17,6 +17,7 @@ import TallyInput from './pages/logistics/TallyInput';
 import Monitoring from './pages/logistics/Monitoring';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import InventoryAdjustment from './pages/inventory/InventoryAdjustment';
+import TcpInput from './pages/inventory/TcpInput';
 import SalesOrderList from './pages/sales/SalesOrderList';
 import DirectDelivery from './pages/sales/DirectDelivery';
 import StockpileDelivery from './pages/sales/StockpileDelivery';
@@ -49,6 +50,7 @@ function App() {
                 <Route path="/logistics/monitoring" element={<Monitoring />} />
                 <Route path="/inventory" element={<InventoryDashboard />} />
                 <Route path="/inventory/adjustment" element={<InventoryAdjustment />} />
+                <Route path="/inventory/tcp" element={<TcpInput />} />
                 <Route path="/sales/orders" element={<SalesOrderList />} />
                 <Route path="/sales/direct-barge" element={<DirectDelivery />} />
                 <Route path="/sales/stockpile" element={<StockpileDelivery />} />

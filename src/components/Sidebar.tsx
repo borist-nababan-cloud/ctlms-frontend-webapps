@@ -62,7 +62,8 @@ const MENU_ITEMS: MenuItemInfo[] = [
         allowedRoles: [1, 2, 3, 4, 5, 6],
         children: [
             { key: 'sidebar.inventory_dashboard', path: '/inventory', icon: <DashboardIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-            { key: 'sidebar.inventory_adjustment', path: '/inventory/adjustment', icon: <MasterDataIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] }
+            { key: 'sidebar.inventory_adjustment', path: '/inventory/adjustment', icon: <MasterDataIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.inventory_tcp', path: '/inventory/tcp', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] }
         ]
     },
     {
