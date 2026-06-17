@@ -636,7 +636,7 @@ const MasterCompanies = () => {
                                 borderRadius: '8px'
                             }}
                         >
-                            {uploading ? 'Uploading...' : t('common.save')}
+                            {uploading ? 'Mengunggah...' : t('common.save')}
                         </Button>
                     </DialogActions>
                 </Box>

@@ -178,14 +178,8 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
     const net = Math.max(0, gross - tare);
     const photoUrl = watch(`items.${index}.photo_url`);
 
-    // Calculate produk_net dynamically for row display
-    let produkNet = net;
-    if (index > 0) {
-        const prevGross = watch(`items.${index - 1}.gross_weight`) || 0;
-        const prevTare = watch(`items.${index - 1}.tare_weight`) || 0;
-        const prevNet = Math.max(0, prevGross - prevTare);
-        produkNet = net - prevNet;
-    }
+    // Calculate produk_net dynamically for row display (Summation Pattern: produkNet = netWeight)
+    const produkNet = net;
 
     return (
         <Card
@@ -655,18 +649,12 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         }
 
         let hasError = false;
-        const newTrukList = watchItems.map((item, index) => {
+        const newTrukList = watchItems.map((item) => {
             const currentNet = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
-            let calculatedProdukNet = currentNet;
+            const calculatedProdukNet = currentNet;
 
-            if (index > 0) {
-                const prevGross = Number(watchItems[index - 1]?.gross_weight) || 0;
-                const prevTare = Number(watchItems[index - 1]?.tare_weight) || 0;
-                const prevNet = Math.max(0, prevGross - prevTare);
-                calculatedProdukNet = currentNet - prevNet;
-                if (calculatedProdukNet < 0) {
-                    hasError = true;
-                }
+            if (calculatedProdukNet < 0) {
+                hasError = true;
             }
 
             return {
@@ -704,13 +692,14 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
             setValue('type_blending', blendingVal);
         }
 
-        // Recalculate Last Truck Gross, First Truck Tare, and Total Netto and auto-update Header fields
-        const lastTruckGross = newTrukList.length > 0 ? (Number(newTrukList[newTrukList.length - 1].gross_weight) || 0) : 0;
+        // Recalculate First Truck Tare, Total Netto (Sum of produk_net), and Total Gross for Header fields
         const firstTare = newTrukList.length > 0 ? (Number(newTrukList[0].tare_weight) || 0) : 0;
-
-        const headerGross = lastTruckGross + adjustWeightValue;
+        
+        const sumProdukNet = newTrukList.reduce((sum, item) => sum + (item.produk_net || 0), 0);
+        
+        const headerNetto = sumProdukNet + adjustWeightValue;
         const headerTare = firstTare;
-        const headerNetto = headerGross - headerTare;
+        const headerGross = headerNetto + headerTare;
 
         setValue('gross_weight', headerGross);
         setValue('tare_weight', headerTare);
@@ -851,17 +840,10 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         }
 
         try {
-            // Re-calculate sequential net weights at submission time to ensure correct database values
-            const itemsPayload = data.items.map((item, index) => {
+            // Re-calculate sum-based net weights at submission time to ensure correct database values
+            const itemsPayload = data.items.map((item) => {
                 const currentNet = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
-                let calculatedProdukNet = currentNet;
-
-                if (index > 0) {
-                    const prevGross = Number(data.items[index - 1]?.gross_weight) || 0;
-                    const prevTare = Number(data.items[index - 1]?.tare_weight) || 0;
-                    const prevNet = Math.max(0, prevGross - prevTare);
-                    calculatedProdukNet = currentNet - prevNet;
-                }
+                const calculatedProdukNet = currentNet;
 
                 return {
                     id: item.id,

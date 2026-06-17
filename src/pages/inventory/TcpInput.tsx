@@ -93,15 +93,21 @@ const TcpInput = () => {
     const [invoiceNo, setInvoiceNo] = useState<string>('');
     const [vesselName, setVesselName] = useState<string>('');
     const [shipmentQty, setShipmentQty] = useState<number>(0);
-    const [systemStockSnapshot, setSystemStockSnapshot] = useState<number>(0);
     const [totalIn, setTotalIn] = useState<number>(0);
     const [totalOut, setTotalOut] = useState<number>(0);
 
-    // Calculate Selisih dynamically: Quantity Shipment - Nilai Total TCP - Total Keluar
-    const selisih = useMemo(() => {
+    // Hitung Stok Sistem (Teoritis)
+    const stokSistemTeoritis = useMemo(() => {
+        return shipmentQty - totalOut;
+    }, [shipmentQty, totalOut]);
+
+    // Hitung Selisih dan Stok Aktual (Final) dynamically
+    const { selisih, stokAktual } = useMemo(() => {
         const tcpNum = parseThousand(tcpValue);
-        return shipmentQty - tcpNum - totalOut;
-    }, [shipmentQty, tcpValue, totalOut]);
+        const sel = tcpNum - shipmentQty;
+        const aktual = stokSistemTeoritis + sel;
+        return { selisih: sel, stokAktual: aktual };
+    }, [shipmentQty, tcpValue, stokSistemTeoritis]);
 
     // Validation: Checks if selected shipment already has TCP input
     const isShipmentAlreadyConsolidated = useMemo(() => {
@@ -152,7 +158,6 @@ const TcpInput = () => {
             setInvoiceNo('');
             setVesselName('');
             setShipmentQty(0);
-            setSystemStockSnapshot(0);
             setTotalIn(0);
             setTotalOut(0);
             return;
@@ -171,11 +176,7 @@ const TcpInput = () => {
             // Fetch current stock snapshot and ledger aggregations
             setLoadingDetails(true);
             try {
-                const [stockSnapshot, ledgerTotals] = await Promise.all([
-                    tcpService.getCurrentStockForProduct(shipment.product_id),
-                    tcpService.getLedgerTotalsForProduct(shipment.product_id)
-                ]);
-                setSystemStockSnapshot(stockSnapshot);
+                const ledgerTotals = await tcpService.getLedgerTotalsForProduct(shipment.product_id);
                 setTotalIn(ledgerTotals.totalIn);
                 setTotalOut(ledgerTotals.totalOut);
             } catch (err) {
@@ -213,7 +214,6 @@ const TcpInput = () => {
         setInvoiceNo(record.shipments?.invoice_no || '');
         setVesselName(record.shipments?.vessel_name || '');
         setShipmentQty(Number(record.shipments?.quantity) || 0);
-        setSystemStockSnapshot(Number(record.current_stock_snapshot) || 0);
         setTotalIn(Number(record.total_in) || 0);
         setTotalOut(Number(record.total_out) || 0);
         setTcpValue(formatThousand(record.tcp_value));
@@ -235,8 +235,8 @@ const TcpInput = () => {
         }
 
         const tcpNum = parseThousand(tcpValue);
-        if (tcpValue.trim() === '' || tcpNum < 0) {
-            setError('Nilai Total TCP tidak boleh kosong dan harus berupa angka positif.');
+        if (tcpValue.trim() === '' || tcpNum <= 0) {
+            setError('Nilai Total TCP tidak boleh kosong atau nol.');
             return;
         }
 
@@ -256,8 +256,8 @@ const TcpInput = () => {
             return;
         }
 
-        // Calculate target actual stock for inventory adjustments
-        const actualStockValue = systemStockSnapshot - selisih;
+        // Gunakan kalkulasi dari useMemo untuk target aktual stok
+        const actualStockValue = stokAktual;
 
         setSubmitting(true);
         try {
@@ -281,7 +281,7 @@ const TcpInput = () => {
                     total_in: totalIn,
                     total_out: totalOut,
                     actual_stock: actualStockValue,
-                    current_stock_snapshot: systemStockSnapshot,
+                    current_stock_snapshot: stokSistemTeoritis,
                     notes: trimmedNotes
                 });
                 setSuccessMsg('Data TCP berhasil disimpan.');
@@ -304,8 +304,8 @@ const TcpInput = () => {
         setError(null);
 
         const tcpNum = parseThousand(tcpValue);
-        if (tcpValue.trim() === '' || tcpNum < 0) {
-            setError('Nilai Total TCP tidak boleh kosong dan harus berupa angka positif.');
+        if (tcpValue.trim() === '' || tcpNum <= 0) {
+            setError('Nilai Total TCP tidak boleh kosong atau nol.');
             return;
         }
 
@@ -318,7 +318,7 @@ const TcpInput = () => {
         setSubmitting(true);
         try {
             // Calculate target actual stock for inventory adjustments
-            const actualStockValue = systemStockSnapshot - selisih;
+            const actualStockValue = stokAktual;
 
             // 1. Save any updated values
             await tcpService.updateTcpRecord({
@@ -471,12 +471,13 @@ const TcpInput = () => {
             Cell: ({ row }) => {
                 const qty = row.original.shipments?.quantity || 0;
                 const tcp = row.original.tcp_value || 0;
-                const out = row.original.total_out || 0;
-                const calculated = qty - tcp - out;
+                const calculated = tcp - qty;
 
                 const isNegative = calculated < 0;
+                const isPositive = calculated > 0;
+                const color = isNegative ? '#ef4444' : isPositive ? '#22c55e' : 'inherit';
                 return (
-                    <span style={{ color: isNegative ? '#ef4444' : 'inherit', fontWeight: 'bold' }}>
+                    <span style={{ color, fontWeight: 'bold' }}>
                         {new Intl.NumberFormat('id-ID').format(calculated)}
                     </span>
                 );
@@ -779,10 +780,10 @@ const TcpInput = () => {
                                             </Grid>
                                             <Grid size={{ xs: 12, sm: 6 }}>
                                                 <TextField
-                                                    label="Stok Sistem (Snapshot)"
+                                                    label="Stok Sistem (Teoritis)"
                                                     fullWidth
                                                     size="small"
-                                                    value={`${systemStockSnapshot.toLocaleString('id-ID')} Kg`}
+                                                    value={`${stokSistemTeoritis.toLocaleString('id-ID')} Kg`}
                                                     disabled
                                                     InputProps={{ readOnly: true }}
                                                 />
@@ -814,7 +815,19 @@ const TcpInput = () => {
                                                 </Divider>
                                             </Grid>
 
-                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                            <Grid size={{ xs: 12 }}>
+                                                {selisih < 0 && tcpValue !== '' ? (
+                                                    <Alert severity="error" sx={{ mb: 1 }}>
+                                                        Indikasi Defisit (Penyusutan)
+                                                    </Alert>
+                                                ) : selisih > 0 && tcpValue !== '' ? (
+                                                    <Alert severity="success" sx={{ mb: 1 }}>
+                                                        Indikasi Surplus (Penambahan Stok)
+                                                    </Alert>
+                                                ) : null}
+                                            </Grid>
+
+                                            <Grid size={{ xs: 12, sm: 4 }}>
                                                 <TextField
                                                     label="Nilai Total TCP"
                                                     type="text"
@@ -825,11 +838,10 @@ const TcpInput = () => {
                                                     value={tcpValue}
                                                     onChange={(e) => setTcpValue(formatThousand(e.target.value))}
                                                     disabled={submitting || isFormLocked}
-                                                    helperText="Masukkan kuantitas aktual dalam Kg"
                                                 />
                                             </Grid>
 
-                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                            <Grid size={{ xs: 12, sm: 4 }}>
                                                 <TextField
                                                     label="Selisih"
                                                     fullWidth
@@ -838,7 +850,17 @@ const TcpInput = () => {
                                                     disabled
                                                     InputProps={{ readOnly: true }}
                                                     error={selisih < 0}
-                                                    helperText={selisih < 0 ? 'Surplus Stok' : selisih > 0 ? 'Penyusutan Stok' : 'Stok Seimbang'}
+                                                />
+                                            </Grid>
+
+                                            <Grid size={{ xs: 12, sm: 4 }}>
+                                                <TextField
+                                                    label="Stok Aktual (Final)"
+                                                    fullWidth
+                                                    size="small"
+                                                    value={`${stokAktual.toLocaleString('id-ID')} Kg`}
+                                                    disabled
+                                                    InputProps={{ readOnly: true }}
                                                 />
                                             </Grid>
 
@@ -889,7 +911,7 @@ const TcpInput = () => {
                         <Button
                             type="submit"
                             variant="contained"
-                            disabled={submitting || loadingDetails || !selectedShipmentId || isShipmentAlreadyConsolidated || isFormLocked}
+                            disabled={submitting || loadingDetails || !selectedShipmentId || isShipmentAlreadyConsolidated || isFormLocked || !tcpValue || parseThousand(tcpValue) <= 0}
                             startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                             sx={{
                                 borderRadius: '20px',
@@ -897,7 +919,7 @@ const TcpInput = () => {
                                 background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)',
                             }}
                         >
-                            {isEditMode ? 'Simpan Perubahan' : 'Simpan TCP'}
+                            Simpan
                         </Button>
                     </DialogActions>
                 </form>

@@ -21,7 +21,12 @@ import TcpInput from './pages/inventory/TcpInput';
 import SalesOrderList from './pages/sales/SalesOrderList';
 import DirectDelivery from './pages/sales/DirectDelivery';
 import StockpileDelivery from './pages/sales/StockpileDelivery';
-
+import StockReport from './pages/reports/StockReport';
+import PurchaseReport from './pages/reports/PurchaseReport';
+import SalesReport from './pages/reports/SalesReport';
+import DeliveryReport from './pages/reports/DeliveryReport';
+import TcpReport from './pages/reports/TcpReport';
+import AdjustmentReport from './pages/reports/AdjustmentReport';
 
 // AG Grid Styles
 import 'ag-grid-community/styles/ag-grid.css';
@@ -54,6 +59,12 @@ function App() {
                 <Route path="/sales/orders" element={<SalesOrderList />} />
                 <Route path="/sales/direct-barge" element={<DirectDelivery />} />
                 <Route path="/sales/stockpile" element={<StockpileDelivery />} />
+                <Route path="/reports/stock" element={<StockReport />} />
+                <Route path="/reports/purchasing" element={<PurchaseReport />} />
+                <Route path="/reports/sales" element={<SalesReport />} />
+                <Route path="/reports/delivery" element={<DeliveryReport />} />
+                <Route path="/reports/tcp" element={<TcpReport />} />
+                <Route path="/reports/adjustment" element={<AdjustmentReport />} />
 
                 <Route path="/settings" element={<Settings />} />
               </Route>

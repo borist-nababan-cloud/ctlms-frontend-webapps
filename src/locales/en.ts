@@ -23,7 +23,14 @@ export const en = {
             companies: 'Companies',
             user_management: 'User Management',
             blending: 'Master Blending',
-            type_production: 'Master Type Production'
+            type_production: 'Master Type Production',
+            laporan: 'Reports',
+            laporan_stok: 'Stock Report',
+            laporan_purchasing: 'Purchasing',
+            laporan_sales: 'Sales',
+            laporan_delivery: 'Delivery',
+            laporan_tcp: 'TCP Report',
+            laporan_adjustment: 'Adjustment Report'
         },
         common: {
             add_new: 'Add New',

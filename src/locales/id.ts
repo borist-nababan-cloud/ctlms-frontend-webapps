@@ -23,7 +23,14 @@ export const id = {
             companies: 'Perusahaan',
             user_management: 'Manajemen Pengguna',
             blending: 'Master Blending',
-            type_production: 'Master Tipe Produksi'
+            type_production: 'Master Tipe Produksi',
+            laporan: 'Laporan',
+            laporan_stok: 'Laporan Stok',
+            laporan_purchasing: 'Pembelian',
+            laporan_sales: 'Penjualan',
+            laporan_delivery: 'Pengiriman',
+            laporan_tcp: 'Laporan TCP',
+            laporan_adjustment: 'Laporan Adjustment'
         },
         common: {
             add_new: 'Tambah Baru',

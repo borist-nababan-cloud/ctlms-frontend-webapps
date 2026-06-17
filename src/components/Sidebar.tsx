@@ -26,7 +26,9 @@ import {
     ShoppingCart as ShoppingCartIcon,
     Description as DescriptionIcon,
     DirectionsBoat as DirectionsBoatIcon,
-    Warehouse as WarehouseIcon
+    Warehouse as WarehouseIcon,
+    Assessment as AssessmentIcon,
+    BarChart as BarChartIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -74,6 +76,19 @@ const MENU_ITEMS: MenuItemInfo[] = [
             { key: 'sidebar.sales_master', path: '/sales/orders', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
             { key: 'sidebar.sales_direct_barge', path: '/sales/direct-barge', icon: <DirectionsBoatIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
             { key: 'sidebar.sales_stockpile', path: '/sales/stockpile', icon: <WarehouseIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] }
+        ]
+    },
+    {
+        key: 'sidebar.laporan',
+        icon: <AssessmentIcon />,
+        allowedRoles: [1, 2, 3, 4, 5, 6, 8],
+        children: [
+            { key: 'sidebar.laporan_stok', path: '/reports/stock', icon: <BarChartIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 8] },
+            { key: 'sidebar.laporan_purchasing', path: '/reports/purchasing', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 8] },
+            { key: 'sidebar.laporan_sales', path: '/reports/sales', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 8] },
+            { key: 'sidebar.laporan_delivery', path: '/reports/delivery', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 8] },
+            { key: 'sidebar.laporan_tcp', path: '/reports/tcp', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 8] },
+            { key: 'sidebar.laporan_adjustment', path: '/reports/adjustment', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 8] }
         ]
     },
     /*
