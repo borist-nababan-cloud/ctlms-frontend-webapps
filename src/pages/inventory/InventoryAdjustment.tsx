@@ -226,6 +226,25 @@ const InventoryAdjustment = () => {
             Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
         },
         {
+            id: 'calculated_selisih',
+            header: 'Selisih (Kg)',
+            size: 150,
+            Cell: ({ row }) => {
+                const system = row.original.current_stock_snapshot || 0;
+                const actual = row.original.actual_stock || 0;
+                const calculated = system - actual;
+
+                // If System > Actual (calculated > 0), there is a deficit of stock (Red)
+                // If System < Actual (calculated < 0), there is a surplus of stock (Green)
+                const color = calculated > 0 ? '#ef4444' : calculated < 0 ? '#22c55e' : 'inherit';
+                return (
+                    <span style={{ color, fontWeight: 'bold' }}>
+                        {new Intl.NumberFormat('id-ID').format(calculated)}
+                    </span>
+                );
+            }
+        },
+        {
             accessorKey: 'notes',
             header: 'Catatan',
             size: 250,

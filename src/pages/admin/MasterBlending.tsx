@@ -297,7 +297,7 @@ export default function MasterBlendingPage() {
                     }
                 }}
             >
-                <div className={mode === 'dark' ? 'ag-theme-material' : 'ag-theme-material'} style={{ height: '550px', width: '100%' }}>
+                <div className={mode === 'dark' ? 'ag-theme-material-dark' : 'ag-theme-material'} style={{ height: '550px', width: '100%' }}>
                     <AgGridReact
                         rowData={data}
                         columnDefs={colDefs}

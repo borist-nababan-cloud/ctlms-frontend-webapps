@@ -161,45 +161,9 @@ const StockpileDelivery: React.FC = () => {
         loadDeliveries();
     }, []);
 
-    const handleFormSuccess = async (savedHeader: any, savedItems: any[]) => {
+    const handleFormSuccess = async (_savedHeader: any, _savedItems: any[]) => {
         setSuccessMsg(editingDO ? 'Surat Jalan berhasil diperbarui!' : 'Surat Jalan berhasil disimpan!');
         loadDeliveries();
-
-        if (!editingDO) {
-            try {
-                let companyInfo = null;
-                if (savedHeader.company_id) {
-                    companyInfo = await masterService.getCompanyById(savedHeader.company_id);
-                }
-                setCompany(companyInfo);
-
-                const so = salesOrders.find(item => item.id === savedHeader.sales_order_id) || null;
-                if (so) {
-                    setPrintSO(so);
-                }
-
-                const detailedDO = await deliveryService.getDeliveryOrdersDetailed('STOCKPILE');
-                const savedDetailedDO = detailedDO.find(d => d.id === savedHeader.id);
-                if (savedDetailedDO) {
-                    setPrintDO(savedDetailedDO);
-                } else {
-                    setPrintDO({
-                        ...savedHeader,
-                        customer_name: so?.customer_name || '-',
-                        customer_address: so?.customer_address || '-',
-                        company_name: companyInfo?.name || '-',
-                        items: savedItems
-                    });
-                }
-                setPrintCustomProductName(savedHeader.published_product_name || so?.product_name || '');
-                
-                setTimeout(() => {
-                    handlePrint();
-                }, 500);
-            } catch (printErr) {
-                console.error('Printing error after success:', printErr);
-            }
-        }
     };
 
     // Material React Table columns

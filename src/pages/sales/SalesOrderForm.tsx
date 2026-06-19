@@ -298,7 +298,7 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ salesOrderId, onSuccess
                                     select
                                     label="Pilih Perusahaan"
                                     fullWidth
-                                    disabled={isEditMode || isFormDisabled}
+                                    disabled={true}
                                     error={!!errors.company_id}
                                     helperText={errors.company_id?.message}
                                 >

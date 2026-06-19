@@ -195,10 +195,10 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
             <CardContent sx={{ p: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                        Truk #{index + 1}
+                        Batu #{index + 1}
                     </Typography>
                     {fieldsLength > 1 && (
-                        <Tooltip title="Hapus Truk">
+                        <Tooltip title="Hapus Batu">
                             <IconButton size="small" color="error" onClick={() => remove(index)} disabled={isLocked || submitting}>
                                 <DeleteIcon />
                             </IconButton>
@@ -667,9 +667,20 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         setTrukList(newTrukList);
 
         if (hasError) {
-            setWeightError("Urutan timbangan truk salah! Produk Net negatif.");
+            setWeightError("Urutan timbangan batu salah! Produk Net negatif.");
         } else {
-            setWeightError(null);
+            let tareSequenceError = false;
+            for (let i = 1; i < newTrukList.length; i++) {
+                if (Number(newTrukList[i].tare_weight) < Number(newTrukList[i - 1].tare_weight)) {
+                    tareSequenceError = true;
+                    break;
+                }
+            }
+            if (tareSequenceError) {
+                setWeightError("Urutan Batu Salah !");
+            } else {
+                setWeightError(null);
+            }
         }
 
         // Blending type logic: force NONE if <= 1 truck, otherwise auto-calculate if not manually edited
@@ -753,6 +764,16 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
             return;
         }
 
+        if (data.items && data.items.length >= 2) {
+            for (let i = 1; i < data.items.length; i++) {
+                if (Number(data.items[i].tare_weight) < Number(data.items[i - 1].tare_weight)) {
+                    setError("Urutan Batu Salah !");
+                    setSubmitting(false);
+                    return;
+                }
+            }
+        }
+
         const trimmedProductNameSj = data.product_name_sj?.trim();
         if (!trimmedProductNameSj) {
             setError('Nama Produk (untuk SJ) wajib diisi');
@@ -767,7 +788,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         }
 
         if (!data.items || data.items.length === 0) {
-            setError('Minimal harus menambahkan satu truk/item detail.');
+            setError('Minimal harus menambahkan satu batu/item detail.');
             setSubmitting(false);
             return;
         }
@@ -776,27 +797,27 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         for (let i = 0; i < data.items.length; i++) {
             const item = data.items[i];
             if (!item.internal_product_id) {
-                setError(`Produk Internal untuk Truk #${i + 1} wajib dipilih.`);
+                setError(`Produk Internal untuk Batu #${i + 1} wajib dipilih.`);
                 setSubmitting(false);
                 return;
             }
             if (!item.truck_plate?.trim()) {
-                setError(`No. Polisi untuk Truk #${i + 1} wajib diisi.`);
+                setError(`No. Polisi untuk Batu #${i + 1} wajib diisi.`);
                 setSubmitting(false);
                 return;
             }
             if (!item.ticket_number?.trim()) {
-                setError(`Nomor Ticket untuk Truk #${i + 1} wajib diisi.`);
+                setError(`Nomor Ticket untuk Batu #${i + 1} wajib diisi.`);
                 setSubmitting(false);
                 return;
             }
             if (containsHtmlOrScript(item.truck_plate) || containsHtmlOrScript(item.ticket_number)) {
-                setError(`Input pada Truk #${i + 1} mengandung karakter tidak valid atau script berbahaya.`);
+                setError(`Input pada Batu #${i + 1} mengandung karakter tidak valid atau script berbahaya.`);
                 setSubmitting(false);
                 return;
             }
             if (Number(item.gross_weight) <= 0) {
-                setError(`Gross untuk Truk #${i + 1} harus lebih besar dari 0.`);
+                setError(`Gross untuk Batu #${i + 1} harus lebih besar dari 0.`);
                 setSubmitting(false);
                 return;
             }
@@ -901,6 +922,14 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
     // Calculate total accumulated netto weight displayed in the form summary (bound to header net_weight)
     const totalNetWeight = watch('net_weight') || 0;
 
+    // Filter out "Urutan Batu Salah !" from the general top alert
+    const hasGeneralError = (error && error !== "Urutan Batu Salah !") || 
+                            (weightError && weightError !== "Urutan Batu Salah !") || 
+                            Object.keys(errors).length > 0;
+    const generalErrorMsg = (error !== "Urutan Batu Salah !" ? error : null) || 
+                             (weightError !== "Urutan Batu Salah !" ? weightError : null) || 
+                             "Ada kesalahan pengisian form. Silakan periksa kembali semua inputan Anda.";
+
     return (
         <>
         <Dialog
@@ -938,10 +967,10 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                 </Grid>
                             )}
 
-                            {(error || weightError || Object.keys(errors).length > 0) && (
+                            {hasGeneralError && (
                                 <Grid size={12}>
                                     <Alert severity="error">
-                                        {error || weightError || "Ada kesalahan pengisian form. Silakan periksa kembali semua inputan Anda."}
+                                        {generalErrorMsg}
                                     </Alert>
                                 </Grid>
                             )}
@@ -1259,7 +1288,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                             <Grid size={12} sx={{ mt: 2 }}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                                        Daftar Truk (Detail)
+                                        Daftar Batu (Detail)
                                     </Typography>
                                     <Button
                                         variant="outlined"
@@ -1281,7 +1310,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                         })}
                                         sx={{ borderRadius: '20px', textTransform: 'none' }}
                                     >
-                                        Tambah Truk
+                                        Tambah Batu
                                     </Button>
                                 </Box>
                                 <Divider sx={{ mb: 2 }} />
@@ -1322,6 +1351,15 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                     </Typography>
                                 </Box>
                             </Grid>
+
+                            {/* "Urutan Batu Salah !" Alert on bottom section, placed between Total Netto and DialogActions */}
+                            {(weightError === "Urutan Batu Salah !" || error === "Urutan Batu Salah !") && (
+                                <Grid size={12}>
+                                    <Alert severity="error" sx={{ mt: 1 }}>
+                                        Urutan Batu Salah !
+                                    </Alert>
+                                </Grid>
+                            )}
                         </Grid>
                     )}
                 </DialogContent>
@@ -1338,6 +1376,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                     <Button
                         type="submit"
                         disabled={submitting || loadingData || loadingItems || !!weightError || isLocked}
+                        variant="contained"
                         startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                         sx={{
                             borderRadius: '20px',
