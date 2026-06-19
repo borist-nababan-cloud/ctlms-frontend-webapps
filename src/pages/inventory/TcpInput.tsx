@@ -330,7 +330,7 @@ const TcpInput = () => {
             });
 
             // 2. Perform resubmission (updates status to 'ON_REQUEST' and clears rejection notes)
-            await tcpService.resubmitTcpRecord(selectedRecord.id);
+            await tcpService.resubmitTcpRecord(selectedRecord.inventory_adjustment_id);
 
             setSuccessMsg('Permintaan TCP berhasil dikirim ulang.');
             setOpenDialog(false);

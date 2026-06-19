@@ -230,14 +230,14 @@ export const tcpService = {
     },
 
     // Resubmit TCP record
-    async resubmitTcpRecord(tcpId: string) {
+    async resubmitTcpRecord(adjustmentId: string) {
         const { error } = await supabase
-            .from('tcp_input')
+            .from('inventory_adjustments')
             .update({
                 status: 'ON_REQUEST',
                 rejection_notes: null
-            } as any)
-            .eq('id', tcpId);
+            })
+            .eq('id', adjustmentId);
         if (error) throw error;
     }
 };
