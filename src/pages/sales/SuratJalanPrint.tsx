@@ -42,25 +42,40 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
 
         return (
             <div ref={ref} style={{
-                width: '9.1in',
-                height: '5.1in',
+                width: '9.5in',
+                height: '5.5in',
                 boxSizing: 'border-box',
-                fontFamily: '"Courier New", Courier, monospace',
-                fontSize: '11px',
-                color: '#000',
-                backgroundColor: '#fff',
+                fontFamily: "'Times New Roman', Times, serif",
+                fontSize: '10pt',
+                color: '#000000',
+                backgroundColor: '#ffffff',
                 position: 'relative',
-                padding: '0.1in 0'
+                padding: '0.25in 0.3in 0.2in 0.3in',
+                overflow: 'hidden',
+                WebkitFontSmoothing: 'none',
+                MozOsxFontSmoothing: 'none',
+                textRendering: 'optimizeSpeed'
             }}>
                 <style>{`
                     @media print {
                         @page {
                             size: 9.5in 5.5in;
-                            margin: 0.2in;
+                            margin: 0;
                         }
                         body {
                             margin: 0;
                             -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                            background-color: #ffffff !important;
+                            color: #000000 !important;
+                        }
+                        * {
+                            color: #000000 !important;
+                            text-shadow: none !important;
+                            -webkit-font-smoothing: none !important;
+                            -moz-osx-font-smoothing: none !important;
+                            font-smooth: never !important;
+                            text-rendering: optimizeSpeed !important;
                         }
                     }
                 `}</style>
@@ -72,23 +87,23 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                         {company?.logo_url ? (
                             <img src={company.logo_url} alt="Logo" style={{ maxHeight: '45px', maxWidth: '90px', objectFit: 'contain' }} />
                         ) : (
-                            <div style={{ width: '45px', height: '45px', border: '1px dashed #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px' }}>
+                            <div style={{ width: '45px', height: '45px', border: '1px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt' }}>
                                 Logo
                             </div>
                         )}
                         <div>
-                            <span style={{ fontSize: '15px', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', lineHeight: 1.1 }}>
+                            <span style={{ fontSize: '13pt', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', lineHeight: 1.1 }}>
                                 {company?.name || 'PERUSAHAAN'}
                             </span>
                         </div>
                     </div>
 
-                    {/* Black title banner on the right */}
+                    {/* Outlined title banner on the right */}
                     <div style={{
-                        backgroundColor: '#000',
-                        color: '#fff',
-                        padding: '5px 30px',
-                        fontSize: '15px',
+                        border: '2px solid #000000',
+                        color: '#000000',
+                        padding: '4px 20px',
+                        fontSize: '13pt',
                         fontWeight: 'bold',
                         textAlign: 'center',
                         letterSpacing: '2px'
@@ -101,7 +116,7 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                     {/* Left block (Customer & Transporter details) */}
                     <div style={{ width: '53%' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5px', lineHeight: '1.3' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt', lineHeight: '1.3' }}>
                             <tbody>
                                 <tr>
                                     <td style={{ width: '130px', verticalAlign: 'top' }}>Kepada Yth</td>
@@ -111,7 +126,7 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                                 <tr>
                                     <td style={{ verticalAlign: 'top' }}>Alamat</td>
                                     <td style={{ verticalAlign: 'top' }}>:</td>
-                                    <td style={{ verticalAlign: 'top', fontSize: '9.5px', lineHeight: '1.2' }}>{customerAddress}</td>
+                                    <td style={{ verticalAlign: 'top', fontSize: '8.5pt', lineHeight: '1.2' }}>{customerAddress}</td>
                                 </tr>
                                 <tr>
                                     <td colSpan={3} style={{ height: '6px' }}></td>
@@ -127,7 +142,7 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
 
                     {/* Right block (Waybill identifiers) */}
                     <div style={{ width: '42%' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5px', lineHeight: '1.3' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt', lineHeight: '1.3' }}>
                             <tbody>
                                 <tr>
                                     <td style={{ width: '100px', verticalAlign: 'top' }}>Nomor SJ</td>
@@ -158,56 +173,56 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                 <table style={{
                     width: '100%',
                     borderCollapse: 'collapse',
-                    border: '1px solid #000',
-                    fontSize: '10px'
+                    border: '1px solid #000000',
+                    fontSize: '9pt'
                 }}>
                     <thead>
                         <tr>
-                            <th rowSpan={2} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'left', verticalAlign: 'middle', width: '38%' }}>
+                            <th rowSpan={2} style={{ border: '1px solid #000000', padding: '4px 6px', textAlign: 'left', verticalAlign: 'middle', width: '38%', fontWeight: 'bold' }}>
                                 Nama Barang
                             </th>
-                            <th colSpan={3} style={{ border: '1px solid #000', padding: '2px 6px', textAlign: 'center' }}>
+                            <th colSpan={3} style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                                 Quantity (Kg)
                             </th>
-                            <th rowSpan={2} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'left', verticalAlign: 'middle', width: '30%' }}>
+                            <th rowSpan={2} style={{ border: '1px solid #000000', padding: '4px 6px', textAlign: 'left', verticalAlign: 'middle', width: '30%', fontWeight: 'bold' }}>
                                 KETERANGAN
                             </th>
                         </tr>
                         <tr>
-                            <th colSpan={2} style={{ border: '1px solid #000', padding: '2px 6px', textAlign: 'center' }}>KIRIM</th>
-                            <th style={{ border: '1px solid #000', padding: '2px 6px', textAlign: 'center', width: '16%' }}>TERIMA</th>
+                            <th colSpan={2} style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center', fontWeight: 'bold' }}>KIRIM</th>
+                            <th style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center', width: '16%', fontWeight: 'bold' }}>TERIMA</th>
                         </tr>
                     </thead>
                     <tbody>
                         {/* Gross weight row */}
                         <tr>
-                            <td rowSpan={3} style={{ border: '1px solid #000', padding: '6px', verticalAlign: 'top', fontWeight: 'bold' }}>
+                            <td rowSpan={3} style={{ border: '1px solid #000000', padding: '6px', verticalAlign: 'top', fontWeight: 'bold' }}>
                                 {productName}
                             </td>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px', width: '12%' }}>GROSS</td>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'right', width: '16%' }}>{grossWeight}</td>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px', width: '16%' }}></td>
-                            <td rowSpan={3} style={{ border: '1px solid #000', padding: '6px', verticalAlign: 'top' }}>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px', width: '12%' }}>GROSS</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px', textAlign: 'right', width: '16%' }}>{grossWeight}</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px', width: '16%' }}></td>
+                            <td rowSpan={3} style={{ border: '1px solid #000000', padding: '6px', verticalAlign: 'top' }}>
                                 {notesDisplay}
                             </td>
                         </tr>
                         {/* Tare weight row */}
                         <tr>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px' }}>TARE</td>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'right' }}>{tareWeight}</td>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px' }}></td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px' }}>TARE</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>{tareWeight}</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px' }}></td>
                         </tr>
                         {/* Net weight row */}
                         <tr>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px', fontWeight: 'bold' }}>NETTO</td>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'right', fontWeight: 'bold' }}>{netWeight}</td>
-                            <td style={{ border: '1px solid #000', padding: '3px 6px' }}></td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px', fontWeight: 'bold' }}>NETTO</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px', textAlign: 'right', fontWeight: 'bold' }}>{netWeight}</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px' }}></td>
                         </tr>
                     </tbody>
                 </table>
 
                 {/* Italicized footnote below the table */}
-                <div style={{ fontStyle: 'italic', fontSize: '9px', marginTop: '4px' }}>
+                <div style={{ fontStyle: 'italic', fontSize: '8.5pt', marginTop: '4px', color: '#000000' }}>
                     Barang sudah dikirim dan diterima dalam keadaan baik
                 </div>
 
@@ -215,16 +230,16 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
                     {/* Left Box (Pengirim) */}
                     <div style={{ width: '48%' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '3px', height: '14px' }}>Pengirim</div>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', height: '70px' }}>
+                        <div style={{ fontSize: '9pt', fontWeight: 'bold', marginBottom: '3px', height: '14px', color: '#000000' }}>Pengirim</div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', height: '70px' }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ width: '50%', borderRight: '1px solid #000', verticalAlign: 'bottom', padding: '4px', fontSize: '9px' }}>
+                                    <td style={{ width: '50%', borderRight: '1px solid #000000', verticalAlign: 'bottom', padding: '4px', fontSize: '8.5pt' }}>
                                         <div style={{ height: '40px' }}></div>
                                         <div>Nama &nbsp;: ________________</div>
                                         <div style={{ marginTop: '2px' }}>Jabatan: ________________</div>
                                     </td>
-                                    <td style={{ width: '50%', verticalAlign: 'bottom', padding: '4px', fontSize: '9px' }}>
+                                    <td style={{ width: '50%', verticalAlign: 'bottom', padding: '4px', fontSize: '8.5pt' }}>
                                         <div style={{ height: '40px' }}></div>
                                         <div>Nama &nbsp;: ________________</div>
                                         <div style={{ marginTop: '2px' }}>Jabatan: PENGEMUDI</div>
@@ -236,16 +251,16 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
 
                     {/* Right Box (Penerima) */}
                     <div style={{ width: '48%' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '3px', height: '14px' }}>&nbsp;</div>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', height: '70px' }}>
+                        <div style={{ fontSize: '9pt', fontWeight: 'bold', marginBottom: '3px', height: '14px' }}>&nbsp;</div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', height: '70px' }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ width: '50%', borderRight: '1px solid #000', verticalAlign: 'bottom', padding: '4px', fontSize: '9px' }}>
+                                    <td style={{ width: '50%', borderRight: '1px solid #000000', verticalAlign: 'bottom', padding: '4px', fontSize: '8.5pt' }}>
                                         <div style={{ height: '40px' }}></div>
                                         <div>Nama &nbsp;: ________________</div>
                                         <div style={{ marginTop: '2px' }}>Jabatan: ________________</div>
                                     </td>
-                                    <td style={{ width: '50%', verticalAlign: 'bottom', padding: '4px', fontSize: '9px' }}>
+                                    <td style={{ width: '50%', verticalAlign: 'bottom', padding: '4px', fontSize: '8.5pt' }}>
                                         <div style={{ height: '40px' }}></div>
                                         <div>Nama &nbsp;: ________________</div>
                                         <div style={{ marginTop: '2px' }}>Jabatan: ________________</div>
@@ -259,15 +274,16 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                 {/* Color-coded copy labels footer */}
                 <div style={{
                     position: 'absolute',
-                    bottom: '5px',
-                    left: '5px',
-                    right: '5px',
+                    bottom: '8px',
+                    left: '0.3in',
+                    right: '0.3in',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    fontSize: '9px',
+                    fontSize: '8pt',
                     fontStyle: 'italic',
-                    borderTop: '1px dashed #ccc',
-                    paddingTop: '3px'
+                    borderTop: '1px dashed #000000',
+                    paddingTop: '3px',
+                    color: '#000000'
                 }}>
                     <span>Putih : Penjual</span>
                     <span>Kuning : Pembeli</span>
