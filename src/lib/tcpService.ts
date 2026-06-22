@@ -76,6 +76,18 @@ export const tcpService = {
         return { totalIn, totalOut };
     },
 
+    // Fetch and aggregate direct delivery total for a shipment
+    async getDirectDeliveryTotalForShipment(shipmentId: string): Promise<number> {
+        const { data, error } = await supabase
+            .from('delivery_orders')
+            .select('net_weight')
+            .eq('shipment_id', shipmentId)
+            .eq('delivery_type', 'DIRECT');
+        if (error) throw error;
+        
+        return (data || []).reduce((sum, item) => sum + (Number(item.net_weight) || 0), 0);
+    },
+
     // Get current stock for product
     async getCurrentStockForProduct(productId: string): Promise<number> {
         const { data, error } = await supabase

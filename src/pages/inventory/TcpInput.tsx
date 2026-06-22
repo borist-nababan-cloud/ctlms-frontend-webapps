@@ -104,10 +104,10 @@ const TcpInput = () => {
     // Hitung Selisih dan Stok Aktual (Final) dynamically
     const { selisih, stokAktual } = useMemo(() => {
         const tcpNum = parseThousand(tcpValue);
-        const sel = tcpNum - shipmentQty;
-        const aktual = stokSistemTeoritis + sel;
+        const sel = stokSistemTeoritis - tcpNum;
+        const aktual = tcpNum;
         return { selisih: sel, stokAktual: aktual };
-    }, [shipmentQty, tcpValue, stokSistemTeoritis]);
+    }, [stokSistemTeoritis, tcpValue]);
 
     // Validation: Checks if selected shipment already has TCP input
     const isShipmentAlreadyConsolidated = useMemo(() => {
@@ -176,9 +176,12 @@ const TcpInput = () => {
             // Fetch current stock snapshot and ledger aggregations
             setLoadingDetails(true);
             try {
-                const ledgerTotals = await tcpService.getLedgerTotalsForProduct(shipment.product_id);
+                const [ledgerTotals, directDeliveryTotal] = await Promise.all([
+                    tcpService.getLedgerTotalsForProduct(shipment.product_id),
+                    tcpService.getDirectDeliveryTotalForShipment(shipment.id)
+                ]);
                 setTotalIn(ledgerTotals.totalIn);
-                setTotalOut(ledgerTotals.totalOut);
+                setTotalOut(directDeliveryTotal);
             } catch (err) {
                 console.error('Error loading shipment details:', err);
                 setError('Gagal memuat detail stok untuk pengiriman terpilih.');
@@ -470,12 +473,13 @@ const TcpInput = () => {
             size: 150,
             Cell: ({ row }) => {
                 const qty = row.original.shipments?.quantity || 0;
+                const totalOut = row.original.total_out || 0;
                 const tcp = row.original.tcp_value || 0;
-                const calculated = tcp - qty;
+                const calculated = qty - totalOut - tcp;
 
-                const isNegative = calculated < 0;
-                const isPositive = calculated > 0;
-                const color = isNegative ? '#ef4444' : isPositive ? '#22c55e' : 'inherit';
+                const isDeficit = calculated > 0;
+                const isSurplus = calculated < 0;
+                const color = isDeficit ? '#ef4444' : isSurplus ? '#22c55e' : 'inherit';
                 return (
                     <span style={{ color, fontWeight: 'bold' }}>
                         {new Intl.NumberFormat('id-ID').format(calculated)}
@@ -816,11 +820,11 @@ const TcpInput = () => {
                                             </Grid>
 
                                             <Grid size={{ xs: 12 }}>
-                                                {selisih < 0 && tcpValue !== '' ? (
+                                                {selisih > 0 && tcpValue !== '' ? (
                                                     <Alert severity="error" sx={{ mb: 1 }}>
                                                         Indikasi Defisit (Penyusutan)
                                                     </Alert>
-                                                ) : selisih > 0 && tcpValue !== '' ? (
+                                                ) : selisih < 0 && tcpValue !== '' ? (
                                                     <Alert severity="success" sx={{ mb: 1 }}>
                                                         Indikasi Surplus (Penambahan Stok)
                                                     </Alert>

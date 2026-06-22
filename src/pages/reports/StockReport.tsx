@@ -6,12 +6,16 @@ import {
     Paper,
     Grid,
     Chip,
-    Button
+    Button,
+    FormControlLabel,
+    Checkbox,
+    MenuItem,
+    TextField
 } from '@mui/material';
 import { MaterialReactTable, useMaterialReactTable } from 'material-react-table';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 import { reportService, type DateFilter } from '../../lib/reportService';
+import { deliveryService } from '../../lib/deliveryService';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -23,7 +27,6 @@ const StockReport = () => {
     const companyId = profile?.company_id || '';
     const userRole = profile?.user_role ? Number(profile.user_role) : 0;
 
-    const [chartData, setChartData] = useState<any[]>([]);
     const [tableData, setTableData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [dateFilter, setDateFilter] = useState<DateFilter>({});
@@ -33,17 +36,19 @@ const StockReport = () => {
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
 
+    // Filter stock !== 0 state
+    const [showOnlyNonZeroStock, setShowOnlyNonZeroStock] = useState(false);
+
+    // Mutasi Stock States
+    const [products, setProducts] = useState<any[]>([]);
+    const [selectedProductId, setSelectedProductId] = useState<string>('');
+    const [mutationData, setMutationData] = useState<any[]>([]);
+    const [loadingMutations, setLoadingMutations] = useState(false);
+
     const fetchData = async () => {
-        
         setLoading(true);
         try {
-            const [cData, tData] = await Promise.all([
-                reportService.getStockMovement(companyId, userRole, dateFilter),
-                reportService.getCurrentStock(companyId, userRole)
-            ]);
-            
-            
-            setChartData(cData);
+            const tData = await reportService.getCurrentStock(companyId, userRole);
             setTableData(tData);
         } catch (err) {
             console.error('[StockReport] Error fetching stock report data:', err);
@@ -55,6 +60,41 @@ const StockReport = () => {
     useEffect(() => {
         fetchData();
     }, [companyId, userRole, dateFilter]);
+
+    // Load products on mount
+    useEffect(() => {
+        const loadProducts = async () => {
+            try {
+                const prod = await deliveryService.getInternalProducts();
+                setProducts(prod);
+            } catch (err) {
+                console.error('[StockReport] Error loading raw products:', err);
+            }
+        };
+        loadProducts();
+    }, []);
+
+    // Load mutations when product changes
+    useEffect(() => {
+        if (!selectedProductId) {
+            setMutationData([]);
+            return;
+        }
+
+        const fetchMutations = async () => {
+            setLoadingMutations(true);
+            try {
+                const data = await reportService.getStockMutations(selectedProductId, companyId, userRole);
+                setMutationData(data);
+            } catch (err) {
+                console.error('[StockReport] Error fetching mutations:', err);
+            } finally {
+                setLoadingMutations(false);
+            }
+        };
+
+        fetchMutations();
+    }, [selectedProductId, companyId, userRole]);
 
     const handleChipFilter = (filter: string) => {
         setActiveChip(filter);
@@ -106,8 +146,16 @@ const StockReport = () => {
         filename: 'Laporan_Stok'
     });
 
+    // Filtered table data for table & CSV export
+    const filteredTableData = useMemo(() => {
+        if (showOnlyNonZeroStock) {
+            return tableData.filter(row => (row.current_stock_kg || 0) !== 0);
+        }
+        return tableData;
+    }, [tableData, showOnlyNonZeroStock]);
+
     const handleExportData = () => {
-        const exportData = tableData.map((row) => ({
+        const exportData = filteredTableData.map((row) => ({
             'Produk': row.product_name,
             'Stok (Kg)': row.current_stock_kg,
             'Terakhir Diperbarui': row.last_updated
@@ -138,7 +186,7 @@ const StockReport = () => {
 
     const table = useMaterialReactTable({
         columns,
-        data: tableData,
+        data: filteredTableData,
         state: { isLoading: loading },
         renderTopToolbarCustomActions: () => (
             <Button
@@ -150,6 +198,99 @@ const StockReport = () => {
                 Ekspor CSV
             </Button>
         ),
+    });
+
+    // Mutasi Stock table columns and hook
+    const mutationColumns = useMemo(() => [
+        {
+            accessorKey: 'created_at',
+            header: 'Tanggal',
+            Cell: ({ cell }: any) => {
+                const val = cell.getValue();
+                return val ? new Date(val).toLocaleString('id-ID', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : '-';
+            }
+        },
+        {
+            accessorKey: 'transaction_type',
+            header: 'Tipe Transaksi',
+            Cell: ({ cell }: any) => {
+                const val = cell.getValue();
+                if (val === 'TALLY_IN') return <Chip label="Pembelian" color="success" size="small" sx={{ fontWeight: 'bold' }} />;
+                if (val === 'SALES_OUT') return <Chip label="Penjualan" color="error" size="small" sx={{ fontWeight: 'bold' }} />;
+                if (val === 'ADJUSTMENT') return <Chip label="Penyesuaian" color="warning" size="small" sx={{ fontWeight: 'bold' }} />;
+                return val;
+            }
+        },
+        {
+            accessorKey: 'qty_change',
+            header: 'Jumlah (Kg)',
+            Cell: ({ cell }: any) => {
+                const val = Number(cell.getValue()) || 0;
+                const isPositive = val > 0;
+                const prefix = isPositive ? '+' : '';
+                const color = isPositive ? '#22c55e' : '#ef4444';
+                return (
+                    <span style={{ color, fontWeight: 'bold' }}>
+                        {prefix}{new Intl.NumberFormat('id-ID').format(val)}
+                    </span>
+                );
+            }
+        },
+        {
+            accessorKey: 'detail_label',
+            header: 'Referensi (Vessel / Surat Jalan)',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'notes',
+            header: 'Catatan',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        }
+    ], []);
+
+    const mutationTable = useMaterialReactTable({
+        columns: mutationColumns,
+        data: mutationData,
+        state: { isLoading: loadingMutations },
+        enableRowSelection: false,
+        enableFilters: true,
+        enableGlobalFilter: true,
+        renderTopToolbarCustomActions: () => {
+            const handleExportMutation = () => {
+                const config = mkConfig({
+                    fieldSeparator: ',',
+                    decimalSeparator: '.',
+                    useKeysAsHeaders: true,
+                    filename: 'Mutasi_Stok'
+                });
+                const exportData = mutationData.map((row) => ({
+                    'Tanggal': row.created_at ? new Date(row.created_at).toLocaleString('id-ID') : '',
+                    'Tipe Transaksi': row.transaction_type,
+                    'Jumlah (Kg)': row.qty_change,
+                    'Referensi': row.detail_label,
+                    'Catatan': row.notes
+                }));
+                const csv = generateCsv(config)(exportData);
+                download(config)(csv);
+            };
+            return (
+                <Button
+                    color="primary"
+                    onClick={handleExportMutation}
+                    startIcon={<FileDownloadIcon />}
+                    variant="contained"
+                    disabled={mutationData.length === 0}
+                >
+                    Ekspor CSV Mutasi
+                </Button>
+            );
+        }
     });
 
     return (
@@ -165,6 +306,18 @@ const StockReport = () => {
                 <Chip label="Bulan Ini" onClick={() => handleChipFilter('Bulan Ini')} color={activeChip === 'Bulan Ini' ? 'primary' : 'default'} />
                 <Chip label="Tahun Ini" onClick={() => handleChipFilter('Tahun Ini')} color={activeChip === 'Tahun Ini' ? 'primary' : 'default'} />
                 
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={showOnlyNonZeroStock}
+                            onChange={(e) => setShowOnlyNonZeroStock(e.target.checked)}
+                            color="primary"
+                        />
+                    }
+                    label="Tampilkan Stok ≠ 0 saja"
+                    sx={{ ml: 2 }}
+                />
+
                 <Box sx={{ flexGrow: 1 }} />
                 
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -186,25 +339,42 @@ const StockReport = () => {
 
             <Grid container spacing={3}>
                 <Grid size={{ xs: 12 }}>
-                    <Paper sx={{ p: 3, mb: 3 }}>
-                        <Typography variant="h6" sx={{ mb: 2 }}>Pergerakan Stok (Kumulatif)</Typography>
-                        <Box sx={{ width: '100%', height: 350, minWidth: 0, minHeight: 0 }}>
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="date" />
-                                <YAxis />
-                                <Tooltip formatter={(value: any) => new Intl.NumberFormat('id-ID').format(value) + ' Kg'} />
-                                <Line type="monotone" dataKey="stock" stroke="#8884d8" strokeWidth={3} dot={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                        </Box>
-                    </Paper>
-                </Grid>
-                <Grid size={{ xs: 12 }}>
                     <MaterialReactTable table={table} />
                 </Grid>
             </Grid>
+
+            {/* Mutasi Stock Section */}
+            <Paper sx={{ p: 3, mt: 4, borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)' }}>
+                <Typography variant="h5" fontWeight="bold" sx={{ mb: 3, background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    Mutasi Stock
+                </Typography>
+                <Grid container spacing={3} sx={{ mb: 3 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <TextField
+                            select
+                            label="Pilih Produk Internal (Raw)"
+                            fullWidth
+                            size="small"
+                            value={selectedProductId}
+                            onChange={(e) => setSelectedProductId(e.target.value)}
+                        >
+                            {products.map(p => (
+                                <MenuItem key={p.id} value={p.id}>
+                                    {p.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </Grid>
+                </Grid>
+
+                {selectedProductId ? (
+                    <MaterialReactTable table={mutationTable} />
+                ) : (
+                    <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
+                        <Typography variant="body1">Silakan pilih produk terlebih dahulu untuk melihat mutasi stok.</Typography>
+                    </Box>
+                )}
+            </Paper>
         </Container>
     );
 };

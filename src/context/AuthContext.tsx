@@ -29,17 +29,30 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [session, setSession] = useState<Session | null>(null);
+    const [session, setSessionState] = useState<Session | null>(null);
     const [user, setUser] = useState<User | null>(null);
-    const [profile, setProfile] = useState<UserProfileWithBranding | null>(null);
+    const [profile, setProfileState] = useState<UserProfileWithBranding | null>(null);
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
     const fetchingUuidRef = useRef<string | null>(null);
 
-    const fetchOrCreateProfile = async (currentUser: User) => {
+    const sessionRef = useRef<Session | null>(null);
+    const profileRef = useRef<UserProfileWithBranding | null>(null);
+
+    const setSession = (s: Session | null) => {
+        sessionRef.current = s;
+        setSessionState(s);
+    };
+
+    const setProfile = (p: UserProfileWithBranding | null) => {
+        profileRef.current = p;
+        setProfileState(p);
+    };
+
+    const fetchOrCreateProfile = async (currentUser: User, isBackground = false) => {
         // PERF: Prevent redundant fetching
-        if (profile && profile.uuid === currentUser.id) {
-            setLoading(false);
+        if (profileRef.current && profileRef.current.uuid === currentUser.id) {
+            if (!isBackground) setLoading(false);
             return;
         }
 
@@ -131,7 +144,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } finally {
             fetchingUuidRef.current = null;
             // CRITICAL: Always turn off loading so the app can render
-            setLoading(false);
+            if (!isBackground) {
+                setLoading(false);
+            }
         }
     };
 
@@ -142,7 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(session?.user ?? null);
             if (session?.user) {
                 setTimeout(() => {
-                    fetchOrCreateProfile(session.user!);
+                    fetchOrCreateProfile(session.user!, false);
                 }, 0);
             } else {
                 setLoading(false);
@@ -154,13 +169,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // 2. Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            const previousUserId = sessionRef.current?.user?.id ?? null;
+            const newUserId = session?.user?.id ?? null;
+
             setSession(session);
             setUser(session?.user ?? null);
+
             if (session?.user) {
-                setLoading(true);
-                setTimeout(() => {
-                    fetchOrCreateProfile(session.user!);
-                }, 0);
+                // If the user changed or we don't have a profile yet, set loading to true
+                if (newUserId !== previousUserId || !profileRef.current) {
+                    setLoading(true);
+                    setTimeout(() => {
+                        fetchOrCreateProfile(session.user!, false);
+                    }, 0);
+                } else {
+                    // Same user, and profile already exists, do it in the background silently
+                    setTimeout(() => {
+                        fetchOrCreateProfile(session.user!, true);
+                    }, 0);
+                }
             } else {
                 setProfile(null);
                 setLoading(false);

@@ -66,14 +66,26 @@ export const reportService = {
 
     // 2. Current Stock (Table)
     async getCurrentStock(companyId: string, role: number) {
-        
+        // Fetch only master_products with type = "INTERNAL_RAW"
+        const { data: rawProducts, error: prodError } = await supabase
+            .from('master_products')
+            .select('id')
+            .eq('type', 'INTERNAL_RAW');
+
+        if (prodError) throw prodError;
+
+        const rawProductIds = rawProducts?.map(p => p.id) || [];
+        if (rawProductIds.length === 0) {
+            return [];
+        }
+
         let query = supabase
             .from('view_inventory_current')
             .select('*')
+            .in('product_id', rawProductIds)
             .order('product_name', { ascending: true });
 
         if (role !== 8 && companyId) {
-            
             query = query.eq('company_id', companyId);
         }
 
@@ -276,5 +288,90 @@ export const reportService = {
         }
         
         return data || [];
+    },
+
+    // 8. Stock Mutations per Product
+    async getStockMutations(productId: string, companyId: string, role: number) {
+        let query = supabase
+            .from('inventory_ledger')
+            .select(`
+                id,
+                product_id,
+                qty_change,
+                transaction_type,
+                reference_id,
+                notes,
+                created_at
+            `)
+            .eq('product_id', productId)
+            .order('created_at', { ascending: false });
+
+        if (role !== 8 && companyId) {
+            query = query.eq('company_id', companyId);
+        }
+
+        const { data: ledgerData, error } = await query;
+        if (error) {
+            console.error('[reportService.getStockMutations] Supabase error:', error);
+            throw error;
+        }
+
+        if (!ledgerData || ledgerData.length === 0) {
+            return [];
+        }
+
+        // Collect IDs
+        const shipmentIds: string[] = [];
+        const doIds: string[] = [];
+
+        ledgerData.forEach(item => {
+            if (item.reference_id) {
+                if (item.transaction_type === 'TALLY_IN') {
+                    shipmentIds.push(item.reference_id);
+                } else if (item.transaction_type === 'SALES_OUT') {
+                    doIds.push(item.reference_id);
+                }
+            }
+        });
+
+        // Fetch shipments and delivery orders in parallel
+        const [shipmentsResult, dosResult] = await Promise.all([
+            shipmentIds.length > 0
+                ? supabase.from('shipments').select('id, vessel_name').in('id', shipmentIds)
+                : Promise.resolve({ data: [] as any[], error: null }),
+            doIds.length > 0
+                ? supabase.from('delivery_orders').select('id, sj_number').in('id', doIds)
+                : Promise.resolve({ data: [] as any[], error: null })
+        ]);
+
+        if (shipmentsResult.error) throw shipmentsResult.error;
+        if (dosResult.error) throw dosResult.error;
+
+        // Create mapping maps
+        const shipmentMap = new Map<string, string>();
+        (shipmentsResult.data || []).forEach(s => {
+            if (s.vessel_name) shipmentMap.set(s.id, s.vessel_name);
+        });
+
+        const doMap = new Map<string, string>();
+        (dosResult.data || []).forEach(d => {
+            if (d.sj_number) doMap.set(d.id, d.sj_number);
+        });
+
+        // Map back to ledger items
+        return ledgerData.map(item => {
+            let detailLabel = '-';
+            if (item.reference_id) {
+                if (item.transaction_type === 'TALLY_IN') {
+                    detailLabel = shipmentMap.get(item.reference_id) || '-';
+                } else if (item.transaction_type === 'SALES_OUT') {
+                    detailLabel = doMap.get(item.reference_id) || '-';
+                }
+            }
+            return {
+                ...item,
+                detail_label: detailLabel
+            };
+        });
     }
 };
