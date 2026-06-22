@@ -8,8 +8,11 @@ import {
     Button,
     Alert,
     Box,
-    AlertTitle
+    AlertTitle,
+    IconButton,
+    InputAdornment
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +24,7 @@ const Login = () => {
     const { authError } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
@@ -102,12 +106,26 @@ const Login = () => {
                         />
                         <TextField
                             label={t('auth.password')}
-                            type="password"
+                            type={showPassword ? 'text' : 'password'}
                             variant="outlined"
                             fullWidth
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle password visibility"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            edge="end"
+                                        >
+                                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                )
+                            }}
                         />
                         <Button
                             type="submit"
