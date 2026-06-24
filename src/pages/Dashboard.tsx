@@ -10,6 +10,9 @@ import { useAuth } from '../context/AuthContext';
 const Dashboard = () => {
     const { profile } = useAuth();
     const appName = import.meta.env.VITE_APP_NAME || 'Application';
+    const displayName = profile?.company_id 
+        ? (profile?.company_name || profile?.companyName || appName) 
+        : appName;
 
     return (
         <Container maxWidth="xl" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', py: 4 }}>
@@ -17,7 +20,7 @@ const Dashboard = () => {
                 <Card elevation={3}>
                     <CardContent sx={{ textAlign: 'center', py: 5 }}>
                         <Typography variant="h3" component="h1" gutterBottom color="primary">
-                            Selamat Datang di {appName}
+                            Selamat Datang di {displayName}
                         </Typography>
                         <Typography variant="h6" color="text.secondary" gutterBottom>
                             Halo, {profile?.real_name || profile?.email}

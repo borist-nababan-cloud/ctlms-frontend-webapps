@@ -24,10 +24,12 @@ import type { ShipmentDetailed } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
 import ShipmentForm from './ShipmentForm';
 import { userService } from '../../lib/userService';
+import { useAuth } from '../../context/AuthContext';
 
 const ShipmentList = () => {
     const { mode } = useColorMode();
     const { t } = useTranslation();
+    const { profile } = useAuth();
     const [shipments, setShipments] = useState<ShipmentDetailed[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -57,7 +59,10 @@ const ShipmentList = () => {
         try {
             setLoading(true);
             const data = await shipmentService.getShipments();
-            setShipments(data);
+            const filteredData = profile?.company_id
+                ? data.filter(s => s.company_id === profile.company_id)
+                : data;
+            setShipments(filteredData);
         } catch (err: any) {
             console.error('Error fetching shipments:', err);
             setError('Terjadi kesalahan pada sistem saat memuat data.');
@@ -69,7 +74,7 @@ const ShipmentList = () => {
     useEffect(() => {
         fetchShipments();
         fetchUsers();
-    }, []);
+    }, [profile?.company_id]);
 
     const columns = useMemo<MRT_ColumnDef<ShipmentDetailed>[]>(() => [
         {

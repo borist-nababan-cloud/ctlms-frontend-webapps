@@ -120,9 +120,17 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
                     deliveryService.getInternalProducts(),
                     masterService.getPartners()
                 ]);
-                setSalesOrders(orders);
+                let filteredOrders = orders;
+                if (loggedInProfile?.company_id) {
+                    filteredOrders = orders.filter(so => so.company_id === loggedInProfile.company_id);
+                }
+                setSalesOrders(filteredOrders);
                 setInternalProducts(rawProducts);
-                setTransporters(partners.filter(p => p.type === 'TRANSPORTER'));
+                let filteredTransporters = partners.filter(p => p.type === 'TRANSPORTER');
+                if (loggedInProfile?.company_id) {
+                    filteredTransporters = filteredTransporters.filter(p => p.company_id === loggedInProfile.company_id);
+                }
+                setTransporters(filteredTransporters);
             } catch (err) {
                 console.error('Error loading form metadata:', err);
                 setError('Gagal memuat data master untuk form.');
@@ -134,7 +142,7 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
         if (open) {
             loadDropdowns();
         }
-    }, [open]);
+    }, [open, loggedInProfile]);
 
     // 2. Handle Edit Mode: Pre-load values
     useEffect(() => {

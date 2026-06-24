@@ -82,7 +82,11 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ salesOrderId, onSuccess
                 ]);
 
                 setCompanies(allCompanies);
-                setCustomers(allPartners.filter(p => p.type === 'CUSTOMER'));
+                let filteredCustomers = allPartners.filter(p => p.type === 'CUSTOMER');
+                if (loggedInProfile?.company_id) {
+                    filteredCustomers = filteredCustomers.filter(p => p.company_id === loggedInProfile.company_id);
+                }
+                setCustomers(filteredCustomers);
                 setProducts(allProducts.filter(p => p.type === 'PUBLISHED_FINISHED'));
 
                 if (isEditMode && salesOrderId) {

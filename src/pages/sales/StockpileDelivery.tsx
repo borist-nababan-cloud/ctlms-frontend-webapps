@@ -25,9 +25,11 @@ import { supabase } from '../../lib/supabaseClient';
 import type { SalesOrderDetailed, DeliveryOrder, MasterCompany } from '../../types/supabase';
 import SuratJalanPrint from './SuratJalanPrint';
 import StockpileDeliveryForm from './StockpileDeliveryForm';
+import { useAuth } from '../../context/AuthContext';
 
 const StockpileDelivery: React.FC = () => {
     const { mode } = useColorMode();
+    const { profile: loggedInProfile } = useAuth();
     const printRef = useRef<HTMLDivElement>(null);
 
     // Lists
@@ -148,7 +150,10 @@ const StockpileDelivery: React.FC = () => {
         try {
             setTableLoading(true);
             const data = await deliveryService.getDeliveryOrdersDetailed('STOCKPILE');
-            setPrevDeliveries(data);
+            const filteredData = loggedInProfile?.company_id
+                ? data.filter(d => d.company_id === loggedInProfile.company_id)
+                : data;
+            setPrevDeliveries(filteredData);
         } catch (err: any) {
             console.error('Error loading delivery history:', err);
         } finally {
@@ -159,7 +164,7 @@ const StockpileDelivery: React.FC = () => {
     useEffect(() => {
         loadInitialData();
         loadDeliveries();
-    }, []);
+    }, [loggedInProfile?.company_id]);
 
     const handleFormSuccess = async (_savedHeader: any, _savedItems: any[]) => {
         setSuccessMsg(editingDO ? 'Surat Jalan berhasil diperbarui!' : 'Surat Jalan berhasil disimpan!');

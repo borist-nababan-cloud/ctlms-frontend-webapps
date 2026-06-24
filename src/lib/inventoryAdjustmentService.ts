@@ -97,11 +97,15 @@ export const inventoryAdjustmentService = {
         return mapped;
     },
 
-    // Approve inventory adjustment (RPC)
-    async approveAdjustment(adjustmentId: string) {
-        const { error } = await supabase.rpc('approve_inventory_adjustment', {
-            p_adjustment_id: adjustmentId
-        });
+    // Approve inventory adjustment (Direct update status = 'APPROVED')
+    async approveAdjustment(adjustmentId: string, approvedBy: string) {
+        const { error } = await supabase
+            .from('inventory_adjustments')
+            .update({
+                status: 'APPROVED',
+                approved_by: approvedBy
+            })
+            .eq('id', adjustmentId);
         if (error) throw error;
     },
 

@@ -463,7 +463,7 @@ const TcpInput = () => {
         },
         {
             accessorKey: 'total_out',
-            header: 'Total Keluar (Kg)',
+            header: 'Total Loosing (Kg)',
             size: 150,
             Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
         },
@@ -804,7 +804,7 @@ const TcpInput = () => {
                                             </Grid>
                                             <Grid size={{ xs: 12, sm: 6 }}>
                                                 <TextField
-                                                    label="Total Keluar"
+                                                    label="Total Loosing"
                                                     fullWidth
                                                     size="small"
                                                     value={`${totalOut.toLocaleString('id-ID')} Kg`}

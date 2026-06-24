@@ -1,7 +1,7 @@
 export const en = {
     translation: {
         sidebar: {
-            dashboard: 'Dashboard',
+            dashboard: 'Home',
             master_data: 'Master Data',
             partners: 'Partners',
             products: 'Products',
@@ -12,7 +12,7 @@ export const en = {
             inventory_tcp: 'TCP Input (Stock Consolidation)',
             sales: 'Sales',
             sales_master: 'Master Sales',
-            sales_direct_barge: 'Direct Barge Delivery',
+            sales_direct_barge: 'Loosing Delivery',
             sales_stockpile: 'Stockpile Delivery',
             logistics: 'Logistics',
             tally_input: 'Tally Input',

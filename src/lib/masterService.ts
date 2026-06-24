@@ -3,11 +3,17 @@ import type { MasterPartner, MasterProduct, MasterCompany, MasterBlending, Maste
 
 export const masterService = {
     // Partners
-    async getPartners() {
-        const { data, error } = await supabase
+    async getPartners(companyId?: string | null, role?: number | null) {
+        let query = supabase
             .from('master_partners')
             .select('*')
             .order('created_at', { ascending: false });
+
+        if (role !== 8 && companyId) {
+            query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+        }
+
+        const { data, error } = await query;
         if (error) throw error;
         return data as MasterPartner[];
     },
@@ -35,11 +41,17 @@ export const masterService = {
     },
 
     // Products
-    async getProducts() {
-        const { data, error } = await supabase
+    async getProducts(companyId?: string | null, role?: number | null) {
+        let query = supabase
             .from('master_products')
             .select('*')
             .order('created_at', { ascending: false });
+
+        if (role !== 8 && companyId) {
+            query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+        }
+
+        const { data, error } = await query;
         if (error) throw error;
         return data as MasterProduct[];
     },

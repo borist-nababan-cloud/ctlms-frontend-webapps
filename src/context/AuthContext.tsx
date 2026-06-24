@@ -5,6 +5,7 @@ import type { UserProfile } from '../types/supabase';
 
 export interface UserProfileWithBranding extends UserProfile {
     companyName?: string | null;
+    company_name?: string | null;
     hexColor?: string | null;
 }
 
@@ -112,9 +113,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     created_at: rawProfile.created_at,
                     updated_at: rawProfile.updated_at,
                     companyName,
+                    company_name: companyName,
                     hexColor
                 };
                 setProfile(userProfile);
+
+                // Store in localStorage as requested
+                localStorage.setItem('email', rawProfile.email || '');
+                localStorage.setItem('user_role', String(rawProfile.user_role ?? ''));
+                localStorage.setItem('real_name', rawProfile.real_name || '');
+                localStorage.setItem('company_id', rawProfile.company_id || '');
+                localStorage.setItem('company_name', companyName || '');
             } else {
                 // Scenario A: Profile Does Not Exist (First Login)
                 const newProfile: Partial<UserProfile> = {
@@ -190,6 +199,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 }
             } else {
                 setProfile(null);
+                localStorage.removeItem('email');
+                localStorage.removeItem('user_role');
+                localStorage.removeItem('real_name');
+                localStorage.removeItem('company_id');
+                localStorage.removeItem('company_name');
                 setLoading(false);
             }
         });
@@ -198,6 +212,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const signOut = async () => {
+        localStorage.removeItem('email');
+        localStorage.removeItem('user_role');
+        localStorage.removeItem('real_name');
+        localStorage.removeItem('company_id');
+        localStorage.removeItem('company_name');
         await supabase.auth.signOut();
     };
 

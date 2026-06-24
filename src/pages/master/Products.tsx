@@ -20,12 +20,17 @@ import {
 } from 'material-react-table';
 import { useColorMode } from '../../context/ThemeContext';
 import { masterService } from '../../lib/masterService';
-import type { MasterProduct } from '../../types/supabase';
+import type { MasterProduct, MasterCompany } from '../../types/supabase';
 import { containsHtmlOrScript } from '../../lib/sanitizer';
+import { useAuth } from '../../context/AuthContext';
 
 const Products = () => {
     const { mode } = useColorMode();
+    const { profile } = useAuth();
+    const userRole = profile?.user_role ? Number(profile.user_role) : 0;
+
     const [products, setProducts] = useState<MasterProduct[]>([]);
+    const [companies, setCompanies] = useState<MasterCompany[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [dialogError, setDialogError] = useState<string | null>(null);
@@ -37,13 +42,14 @@ const Products = () => {
         sku_code: '',
         name: '',
         type: 'INTERNAL_RAW',
-        current_price: 0
+        current_price: 0,
+        company_id: null
     });
 
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const data = await masterService.getProducts();
+            const data = await masterService.getProducts(profile?.company_id, userRole);
             setProducts(data);
         } catch (err: any) {
             console.error('Error loading products:', err);
@@ -54,11 +60,34 @@ const Products = () => {
     };
 
     useEffect(() => {
-        fetchProducts();
+        const loadCompanies = async () => {
+            try {
+                const data = await masterService.getCompanies();
+                setCompanies(data);
+            } catch (err) {
+                console.error('Error loading companies:', err);
+            }
+        };
+        loadCompanies();
     }, []);
+
+    useEffect(() => {
+        fetchProducts();
+    }, [profile?.company_id, userRole]);
 
     // MRT Columns
     const columns = useMemo<MRT_ColumnDef<MasterProduct>[]>(() => [
+        {
+            accessorKey: 'company_id',
+            header: 'Perusahaan',
+            size: 150,
+            Cell: ({ cell }) => {
+                const cId = cell.getValue<string>();
+                if (!cId) return 'Global';
+                const company = companies.find(c => c.id === cId);
+                return company ? company.name : cId;
+            }
+        },
         {
             accessorKey: 'sku_code',
             header: 'Kode SKU',
@@ -84,19 +113,28 @@ const Products = () => {
             size: 150,
             Cell: ({ cell }) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(cell.getValue<number>()),
         },
-    ], []);
+    ], [companies]);
 
     // Handlers
     const handleOpen = () => {
         setEditingId(null);
-        setFormData({ sku_code: '', name: '', type: 'INTERNAL_RAW', current_price: 0 });
+        setFormData({
+            sku_code: '',
+            name: '',
+            type: 'INTERNAL_RAW',
+            current_price: 0,
+            company_id: profile?.company_id || ''
+        });
         setDialogError(null);
         setOpen(true);
     };
 
     const handleEdit = (product: MasterProduct) => {
         setEditingId(product.id);
-        setFormData(product);
+        setFormData({
+            ...product,
+            company_id: product.company_id || profile?.company_id || ''
+        });
         setDialogError(null);
         setOpen(true);
     };
@@ -110,6 +148,11 @@ const Products = () => {
 
         if (!trimmedSku || !trimmedName) {
             setDialogError('Kode SKU dan Nama Produk wajib diisi.');
+            return;
+        }
+
+        if (!formData.company_id) {
+            setDialogError('Perusahaan wajib dipilih.');
             return;
         }
 
@@ -251,6 +294,21 @@ const Products = () => {
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                         {dialogError && <Alert severity="error">{dialogError}</Alert>}
+                        <TextField
+                            select
+                            label="Pilih Perusahaan"
+                            fullWidth
+                            required
+                            disabled={Boolean(profile?.company_id)}
+                            value={formData.company_id || ''}
+                            onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
+                        >
+                            {companies.map((c) => (
+                                <MenuItem key={c.id} value={c.id}>
+                                    {c.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
                         <TextField
                             label="Kode SKU"
                             fullWidth

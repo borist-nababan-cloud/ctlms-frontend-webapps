@@ -176,10 +176,11 @@ const InventoryAdjustment = () => {
 
     // Approval handlers for Superusers
     const handleApprove = async (adjustmentId: string) => {
+        if (!profile?.uuid) return;
         setError(null);
         setSubmitting(true);
         try {
-            await inventoryAdjustmentService.approveAdjustment(adjustmentId);
+            await inventoryAdjustmentService.approveAdjustment(adjustmentId, profile.uuid);
             setSuccessMsg('Permintaan penyesuaian stok disetujui.');
             await fetchAdjustments();
         } catch (err) {
@@ -306,12 +307,12 @@ const InventoryAdjustment = () => {
                     variant="contained"
                     color="success"
                     size="small"
-                    startIcon={<CheckIcon />}
+                    startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
                     disabled={submitting}
                     onClick={() => handleApprove(row.original.id)}
                     sx={{ textTransform: 'none', borderRadius: '15px' }}
                 >
-                    Setujui
+                    {submitting ? 'Memproses...' : 'Setujui'}
                 </Button>
                 <Button
                     variant="outlined"

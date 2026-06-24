@@ -34,6 +34,7 @@ export interface MasterPartner {
     no_acc: string | null;
     name_acc: string | null;
     created_at?: string;
+    company_id: string | null;
 }
 
 export interface MasterProduct {
@@ -43,6 +44,7 @@ export interface MasterProduct {
     type: 'INTERNAL_RAW' | 'PUBLISHED_FINISHED';
     current_price: number;
     created_at?: string;
+    company_id: string | null;
 }
 
 export interface MasterCompany {

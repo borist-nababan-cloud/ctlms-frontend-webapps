@@ -24,9 +24,10 @@ import {
 } from 'material-react-table';
 import { useColorMode } from '../../context/ThemeContext';
 import { masterService } from '../../lib/masterService';
-import type { MasterPartner } from '../../types/supabase';
+import type { MasterPartner, MasterCompany } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
 import { containsHtmlOrScript } from '../../lib/sanitizer';
+import { useAuth } from '../../context/AuthContext';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -57,7 +58,11 @@ function CustomTabPanel(props: TabPanelProps) {
 const Partners = () => {
     const { mode } = useColorMode();
     const { t } = useTranslation();
+    const { profile } = useAuth();
+    const userRole = profile?.user_role ? Number(profile.user_role) : 0;
+
     const [partners, setPartners] = useState<MasterPartner[]>([]);
+    const [companies, setCompanies] = useState<MasterCompany[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [dialogError, setDialogError] = useState<string | null>(null);
@@ -82,7 +87,8 @@ const Partners = () => {
         bank_acc: '',
         no_acc: '',
         name_acc: '',
-        is_active: true
+        is_active: true,
+        company_id: null
     };
 
     const [formData, setFormData] = useState<Partial<MasterPartner>>(initialFormState);
@@ -90,7 +96,7 @@ const Partners = () => {
     const fetchPartners = async () => {
         try {
             setLoading(true);
-            const data = await masterService.getPartners();
+            const data = await masterService.getPartners(profile?.company_id, userRole);
             setPartners(data);
         } catch (err: any) {
             console.error('Error loading partners:', err);
@@ -101,11 +107,34 @@ const Partners = () => {
     };
 
     useEffect(() => {
-        fetchPartners();
+        const loadCompanies = async () => {
+            try {
+                const data = await masterService.getCompanies();
+                setCompanies(data);
+            } catch (err) {
+                console.error('Error loading companies:', err);
+            }
+        };
+        loadCompanies();
     }, []);
+
+    useEffect(() => {
+        fetchPartners();
+    }, [profile?.company_id, userRole]);
 
     // MRT Columns
     const columns = useMemo<MRT_ColumnDef<MasterPartner>[]>(() => [
+        {
+            accessorKey: 'company_id',
+            header: 'Perusahaan',
+            size: 150,
+            Cell: ({ cell }) => {
+                const cId = cell.getValue<string>();
+                if (!cId) return 'Global';
+                const company = companies.find(c => c.id === cId);
+                return company ? company.name : cId;
+            }
+        },
         {
             accessorKey: 'name',
             header: 'Nama Mitra',
@@ -163,12 +192,15 @@ const Partners = () => {
                 </Box>
             ),
         },
-    ], []);
+    ], [companies]);
 
     // Handlers
     const handleOpen = () => {
         setEditingId(null);
-        setFormData(initialFormState);
+        setFormData({
+            ...initialFormState,
+            company_id: profile?.company_id || ''
+        });
         setTabValue(0);
         setDialogError(null);
         setOpen(true);
@@ -176,7 +208,10 @@ const Partners = () => {
 
     const handleEdit = (partner: MasterPartner) => {
         setEditingId(partner.id);
-        setFormData(partner);
+        setFormData({
+            ...partner,
+            company_id: partner.company_id || profile?.company_id || ''
+        });
         setTabValue(0);
         setDialogError(null);
         setOpen(true);
@@ -207,6 +242,11 @@ const Partners = () => {
 
         if (!trimmedName) {
             setDialogError("Nama Mitra wajib diisi.");
+            return;
+        }
+
+        if (!formData.company_id) {
+            setDialogError("Perusahaan wajib dipilih.");
             return;
         }
 
@@ -380,6 +420,21 @@ const Partners = () => {
                         {/* Tab 1: General Info */}
                         <CustomTabPanel value={tabValue} index={0}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <TextField
+                                    select
+                                    label="Pilih Perusahaan"
+                                    fullWidth
+                                    required
+                                    disabled={Boolean(profile?.company_id)}
+                                    value={formData.company_id || ''}
+                                    onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
+                                >
+                                    {companies.map((c) => (
+                                        <MenuItem key={c.id} value={c.id}>
+                                            {c.name}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
                                 <TextField
                                     label="Nama Mitra"
                                     fullWidth

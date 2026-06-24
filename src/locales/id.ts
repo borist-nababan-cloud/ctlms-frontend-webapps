@@ -1,7 +1,7 @@
 export const id = {
     translation: {
         sidebar: {
-            dashboard: 'Dasbor',
+            dashboard: 'Beranda',
             master_data: 'Data Master',
             partners: 'Mitra',
             products: 'Produk',
@@ -12,7 +12,7 @@ export const id = {
             inventory_tcp: 'Input TCP (Konsolidasi Stok)',
             sales: 'Penjualan',
             sales_master: 'Master Penjualan',
-            sales_direct_barge: 'Pengiriman Langsung',
+            sales_direct_barge: 'Pengiriman Loosing',
             sales_stockpile: 'Pengiriman Stock Pile',
             logistics: 'Logistik',
             tally_input: 'Input Masuk Barang',

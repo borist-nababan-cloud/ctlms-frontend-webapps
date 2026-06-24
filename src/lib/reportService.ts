@@ -64,12 +64,11 @@ export const reportService = {
         return finalData;
     },
 
-    // 2. Current Stock (Table)
     async getCurrentStock(companyId: string, role: number) {
         // Fetch only master_products with type = "INTERNAL_RAW"
         const { data: rawProducts, error: prodError } = await supabase
             .from('master_products')
-            .select('id')
+            .select('id, name, sku_code')
             .eq('type', 'INTERNAL_RAW');
 
         if (prodError) throw prodError;
@@ -79,17 +78,43 @@ export const reportService = {
             return [];
         }
 
-        let query = supabase
+        // If the user is not role 8 (Admin) and companyId is specified, we filter and aggregate by company_id in frontend
+        if (role !== 8 && companyId) {
+            const { data: ledgerData, error: ledgerError } = await supabase
+                .from('inventory_ledger')
+                .select('product_id, qty_change')
+                .eq('company_id', companyId)
+                .in('product_id', rawProductIds);
+
+            if (ledgerError) {
+                console.error('[reportService.getCurrentStock] Ledger fetch error:', ledgerError);
+                throw ledgerError;
+            }
+
+            const stockMap: Record<string, number> = {};
+            (ledgerData || []).forEach(item => {
+                const pId = item.product_id;
+                const qty = Number(item.qty_change) || 0;
+                stockMap[pId] = (stockMap[pId] || 0) + qty;
+            });
+
+            const formattedData = rawProducts.map(p => ({
+                product_id: p.id,
+                sku_code: p.sku_code,
+                product_name: p.name,
+                current_stock_kg: stockMap[p.id] || 0
+            })).sort((a, b) => a.product_name.localeCompare(b.product_name));
+
+            return formattedData;
+        }
+
+        // Otherwise (Admin or no company filter), fetch from global view
+        const { data, error } = await supabase
             .from('view_inventory_current')
             .select('*')
             .in('product_id', rawProductIds)
             .order('product_name', { ascending: true });
 
-        if (role !== 8 && companyId) {
-            query = query.eq('company_id', companyId);
-        }
-
-        const { data, error } = await query;
         if (error) {
             console.error('[reportService.getCurrentStock] Supabase error:', error);
             throw error;

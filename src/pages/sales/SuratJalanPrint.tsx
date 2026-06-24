@@ -14,7 +14,7 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
         if (!deliveryOrder) return null;
 
         const doDate = deliveryOrder.date_of_issue || deliveryOrder.created_at;
-        const formattedDate = doDate 
+        const formattedDate = doDate
             ? new Date(doDate).toLocaleDateString('id-ID', {
                 day: 'numeric',
                 month: 'long',
@@ -199,7 +199,7 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                             <td rowSpan={3} style={{ border: '1px solid #000000', padding: '6px', verticalAlign: 'top', fontWeight: 'bold' }}>
                                 {productName}
                             </td>
-                            <td style={{ border: '1px solid #000000', padding: '3px 6px', width: '12%' }}>GROSS</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px', width: '12%' }}>Gross</td>
                             <td style={{ border: '1px solid #000000', padding: '3px 6px', textAlign: 'right', width: '16%' }}>{grossWeight}</td>
                             <td style={{ border: '1px solid #000000', padding: '3px 6px', width: '16%' }}></td>
                             <td rowSpan={3} style={{ border: '1px solid #000000', padding: '6px', verticalAlign: 'top' }}>
@@ -208,13 +208,13 @@ export const SuratJalanPrint = React.forwardRef<HTMLDivElement, SuratJalanPrintP
                         </tr>
                         {/* Tare weight row */}
                         <tr>
-                            <td style={{ border: '1px solid #000000', padding: '3px 6px' }}>TARE</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px' }}>Tare</td>
                             <td style={{ border: '1px solid #000000', padding: '3px 6px', textAlign: 'right' }}>{tareWeight}</td>
                             <td style={{ border: '1px solid #000000', padding: '3px 6px' }}></td>
                         </tr>
                         {/* Net weight row */}
                         <tr>
-                            <td style={{ border: '1px solid #000000', padding: '3px 6px', fontWeight: 'bold' }}>NETTO</td>
+                            <td style={{ border: '1px solid #000000', padding: '3px 6px', fontWeight: 'bold' }}>Netto</td>
                             <td style={{ border: '1px solid #000000', padding: '3px 6px', textAlign: 'right', fontWeight: 'bold' }}>{netWeight}</td>
                             <td style={{ border: '1px solid #000000', padding: '3px 6px' }}></td>
                         </tr>

@@ -134,7 +134,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }, [location.pathname]);
 
     const userRole = profile?.user_role ? Number(profile.user_role) : 0;
-    const navTitle = import.meta.env.VITE_APP_NAME || 'NSM';
+    const navTitle = profile?.company_id 
+        ? (profile?.company_name || profile?.companyName || import.meta.env.VITE_APP_NAME || 'NSM') 
+        : (import.meta.env.VITE_APP_NAME || 'NSM');
 
     const handleNavigate = (path: string) => {
         navigate(path);

@@ -23,10 +23,12 @@ import { salesService } from '../../lib/salesService';
 import type { SalesOrderDetailed } from '../../types/supabase';
 import { useTranslation } from 'react-i18next';
 import SalesOrderForm from './SalesOrderForm';
+import { useAuth } from '../../context/AuthContext';
 
 const SalesOrderList = () => {
     const { mode } = useColorMode();
     const { t } = useTranslation();
+    const { profile } = useAuth();
     const [orders, setOrders] = useState<SalesOrderDetailed[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,10 @@ const SalesOrderList = () => {
         try {
             setLoading(true);
             const data = await salesService.getSalesOrders();
-            setOrders(data);
+            const filteredData = profile?.company_id
+                ? data.filter(so => so.company_id === profile.company_id)
+                : data;
+            setOrders(filteredData);
         } catch (err: any) {
             console.error('Error fetching sales orders:', err);
             setError('Terjadi kesalahan pada sistem saat memuat data.');
@@ -50,7 +55,7 @@ const SalesOrderList = () => {
 
     useEffect(() => {
         fetchOrders();
-    }, []);
+    }, [profile?.company_id]);
 
     const columns = useMemo<MRT_ColumnDef<SalesOrderDetailed>[]>(() => [
         {

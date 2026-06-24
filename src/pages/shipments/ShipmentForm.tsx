@@ -103,7 +103,11 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                     masterService.getPartners(),
                     masterService.getProducts()
                 ]);
-                setSuppliers(allPartners.filter(p => p.type === 'SUPPLIER'));
+                let filteredSuppliers = allPartners.filter(p => p.type === 'SUPPLIER');
+                if (loggedInProfile?.company_id) {
+                    filteredSuppliers = filteredSuppliers.filter(p => p.company_id === loggedInProfile.company_id);
+                }
+                setSuppliers(filteredSuppliers);
                 setProducts(allProducts.filter(p => p.type === 'INTERNAL_RAW'));
 
                 if (isEditMode && shipmentId) {
@@ -134,7 +138,7 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
             }
         };
         loadMasterData();
-    }, [shipmentId, isEditMode, setValue]);
+    }, [shipmentId, isEditMode, setValue, loggedInProfile]);
 
     const onSubmit = async (data: ShipmentFormValues) => {
         if (isLocked) {
@@ -492,46 +496,50 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                         {renderNumericField('quantity', 'Quantity (Kg)', 'Masukkan quantity...', true)}
                     </Grid>
 
-                    {/* Section 2: Keuangan */}
-                    <Grid size={12}>
-                        <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold', mt: 1, borderBottom: '1px solid rgba(0, 0, 0, 0.1)', pb: 0.5 }}>
-                            Keuangan
-                        </Typography>
-                    </Grid>
+                    {/* Section 2: Keuangan - Hidden for now */}
+                    {false && (
+                        <>
+                            <Grid size={12}>
+                                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold', mt: 1, borderBottom: '1px solid rgba(0, 0, 0, 0.1)', pb: 0.5 }}>
+                                    Keuangan
+                                </Typography>
+                            </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        {renderNumericField('harga', 'Harga (Kg)', 'Masukkan harga...', true)}
-                    </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                {renderNumericField('harga', 'Harga (Kg)', 'Masukkan harga...', true)}
+                            </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField
-                            label="Subtotal (IDR)"
-                            value={formatNumberStr(subtotal)}
-                            fullWidth
-                            disabled
-                        />
-                    </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                    label="Subtotal (IDR)"
+                                    value={formatNumberStr(subtotal)}
+                                    fullWidth
+                                    disabled
+                                />
+                            </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        {renderNumericField('ppn_tax', 'PPN', 'Masukkan PPN...')}
-                    </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                {renderNumericField('ppn_tax', 'PPN', 'Masukkan PPN...')}
+                            </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        {renderNumericField('pph_tax', 'PPh', 'Masukkan PPh...')}
-                    </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                {renderNumericField('pph_tax', 'PPh', 'Masukkan PPh...')}
+                            </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        {renderNumericField('disc', 'Diskon', 'Masukkan diskon...')}
-                    </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                {renderNumericField('disc', 'Diskon', 'Masukkan diskon...')}
+                            </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField
-                            label="Total Akhir"
-                            value={formatNumberStr(finalPayment)}
-                            fullWidth
-                            disabled
-                        />
-                    </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                    label="Total Akhir"
+                                    value={formatNumberStr(finalPayment)}
+                                    fullWidth
+                                    disabled
+                                />
+                            </Grid>
+                        </>
+                    )}
 
                     {/* Section 3: Status */}
                     <Grid size={12}>
