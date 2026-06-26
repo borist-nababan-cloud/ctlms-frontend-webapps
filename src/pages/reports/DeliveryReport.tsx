@@ -8,7 +8,7 @@ import {
     Paper,
     Button
 } from '@mui/material';
-import { MaterialReactTable, useMaterialReactTable } from 'material-react-table';
+import { MaterialReactTable, useMaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
 import { useAuth } from '../../context/AuthContext';
 import { useColorMode } from '../../context/ThemeContext';
 import { reportService, type DateFilter } from '../../lib/reportService';
@@ -93,7 +93,7 @@ const DeliveryReport = () => {
         download(csvConfig)(csv);
     };
 
-    const columns = useMemo(() => [
+    const columns = useMemo<MRT_ColumnDef<any>[]>(() => [
         { 
             accessorKey: 'created_at', 
             header: 'Tanggal', 
@@ -155,7 +155,7 @@ const DeliveryReport = () => {
         data: tableData,
         state: { isLoading: loading },
         enableGrouping: true,
-        getRowId: (originalRow, index) => String(index),
+        getRowId: (_, index) => String(index),
         initialState: {
             density: 'compact',
             pagination: { pageSize: 10, pageIndex: 0 },
