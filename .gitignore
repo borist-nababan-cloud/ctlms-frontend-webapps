@@ -33,6 +33,10 @@ scratch/
 .env.*
 *.md
 !README.md
+*.jpeg
+*.JPG
+*.jpg
+*.bak
 
 nul
 

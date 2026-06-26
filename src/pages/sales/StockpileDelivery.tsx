@@ -23,7 +23,8 @@ import { deliveryService } from '../../lib/deliveryService';
 import { masterService } from '../../lib/masterService';
 import { supabase } from '../../lib/supabaseClient';
 import type { SalesOrderDetailed, DeliveryOrder, MasterCompany } from '../../types/supabase';
-import SuratJalanPrint from './SuratJalanPrint';
+import SuratJalanPrintType1 from './SuratJalanPrintType1';
+import SuratJalanPrintType2 from './SuratJalanPrintType2';
 import StockpileDeliveryForm from './StockpileDeliveryForm';
 import { useAuth } from '../../context/AuthContext';
 
@@ -368,13 +369,23 @@ const StockpileDelivery: React.FC = () => {
 
             {/* Hidden Printing Area */}
             <Box sx={{ display: 'none', displayPrint: 'block' }}>
-                <SuratJalanPrint
-                    ref={printRef}
-                    deliveryOrder={printDO}
-                    salesOrder={printSO}
-                    company={company}
-                    customProductName={printCustomProductName}
-                />
+                {company?.type_sj === 1 ? (
+                    <SuratJalanPrintType1
+                        ref={printRef}
+                        deliveryOrder={printDO}
+                        salesOrder={printSO}
+                        company={company}
+                        customProductName={printCustomProductName}
+                    />
+                ) : (
+                    <SuratJalanPrintType2
+                        ref={printRef}
+                        deliveryOrder={printDO}
+                        salesOrder={printSO}
+                        company={company}
+                        customProductName={printCustomProductName}
+                    />
+                )}
             </Box>
 
             <Snackbar

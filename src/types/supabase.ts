@@ -60,6 +60,7 @@ export interface MasterCompany {
     mobile?: string | null;
     email?: string | null;
     logo_url?: string | null;
+    type_sj?: number | null;
     created_at?: string;
 }
 
