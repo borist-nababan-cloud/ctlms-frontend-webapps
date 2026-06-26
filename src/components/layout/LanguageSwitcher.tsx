@@ -51,10 +51,7 @@ const LanguageSwitcher: React.FC = () => {
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                <MenuItem onClick={() => changeLanguage('en')} selected={i18n.language === 'en'}>
-                    English
-                </MenuItem>
-                <MenuItem onClick={() => changeLanguage('id')} selected={i18n.language === 'id'}>
+                <MenuItem onClick={() => changeLanguage('id')} selected={true}>
                     Bahasa Indonesia
                 </MenuItem>
             </Menu>

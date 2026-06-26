@@ -26,10 +26,13 @@ const PurchaseReport = () => {
 
     const [tableData, setTableData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [dateFilter, setDateFilter] = useState<DateFilter>({});
+    const [dateFilter, setDateFilter] = useState<DateFilter>({
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+    });
     
-    const [startDate, setStartDate] = useState<Date | null>(null);
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [startDate, setStartDate] = useState<Date | null>(new Date());
+    const [endDate, setEndDate] = useState<Date | null>(new Date());
 
     const fetchData = async () => {
         
@@ -76,9 +79,12 @@ const PurchaseReport = () => {
     const handleExportData = () => {
         const exportData = tableData.map(row => ({
             'No. Invoice': row.invoice_no || '',
+            'Vessel': row.vessel_name || '',
             'Produk': row.master_products?.name || '',
             'Supplier': row.master_partners?.name || '',
             'Qty (Kg)': row.quantity || 0,
+            'Asal Batu': row.asal_batu || '',
+            'Jenis Batu': row.jenis_batu || '',
             'Status': row.status || '',
             'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : ''
         }));
@@ -92,6 +98,10 @@ const PurchaseReport = () => {
             header: 'No. Invoice' 
         },
         { 
+            accessorKey: 'vessel_name', 
+            header: 'Vessel' 
+        },
+        { 
             accessorKey: 'master_products.name', 
             header: 'Produk' 
         },
@@ -103,6 +113,14 @@ const PurchaseReport = () => {
             accessorKey: 'quantity', 
             header: 'Qty (Kg)', 
             Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0) 
+        },
+        {
+            accessorKey: 'asal_batu',
+            header: 'Asal Batu'
+        },
+        {
+            accessorKey: 'jenis_batu',
+            header: 'Jenis Batu'
         },
         { 
             accessorKey: 'status', 

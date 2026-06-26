@@ -17,7 +17,10 @@ import {
 
 import { inventoryService } from '../../lib/inventoryService';
 import { useColorMode } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import type { InventoryCurrent } from '../../types/supabase';
+import { mkConfig, generateCsv, download } from 'export-to-csv';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -46,6 +49,9 @@ function CustomTabPanel(props: TabPanelProps) {
 
 const InventoryDashboard = () => {
     const { mode } = useColorMode();
+    const { profile } = useAuth();
+    const companyId = profile?.company_id || '';
+    const userRole = profile?.user_role ? Number(profile.user_role) : 0;
     const [tabValue, setTabValue] = useState(0);
 
     // Data States
@@ -55,16 +61,18 @@ const InventoryDashboard = () => {
 
     useEffect(() => {
         loadData();
-    }, [tabValue]);
+    }, [tabValue, companyId]);
 
     const loadData = async () => {
         setLoading(true);
         try {
             if (tabValue === 0) {
-                const data = await inventoryService.getCurrentStock();
-                setCurrentStock(data);
+                const data = await inventoryService.getCurrentStock(companyId, userRole);
+                // Filter current_stock_kg <> 0
+                const filteredData = data.filter((item: any) => item.current_stock_kg !== 0);
+                setCurrentStock(filteredData);
             } else {
-                const data = await inventoryService.getStockHistory();
+                const data = await inventoryService.getStockHistory(companyId, userRole);
                 setHistoryLogs(data);
             }
         } catch (error) {
@@ -121,13 +129,18 @@ const InventoryDashboard = () => {
                 return <Chip label={type} color={color} size="small" />;
             },
         },
-        { accessorKey: 'master_products.name', header: 'Produk', size: 200 },
+        { 
+            accessorKey: 'product_name', 
+            header: 'Nama Produk', 
+            size: 200,
+            Cell: ({ cell }) => cell.getValue<string>() || '-'
+        },
         {
             accessorKey: 'qty_change',
             header: 'Perubahan Qty (Kg)',
             size: 150,
             Cell: ({ cell }) => {
-                const value = cell.getValue<number>();
+                const value = cell.getValue<number>() || 0;
                 const color = value > 0 ? 'green' : (value < 0 ? 'red' : 'inherit');
                 return (
                     <span style={{ color, fontWeight: 'bold' }}>
@@ -136,7 +149,24 @@ const InventoryDashboard = () => {
                 );
             }
         },
-        { accessorKey: 'notes', header: 'Catatan', size: 250 }
+        { 
+            accessorKey: 'vessel_name', 
+            header: 'Nama Vessel', 
+            size: 150,
+            Cell: ({ cell }) => cell.getValue<string>() || '-'
+        },
+        { 
+            accessorKey: 'supplier_name', 
+            header: 'Nama Supplier', 
+            size: 150,
+            Cell: ({ cell }) => cell.getValue<string>() || '-'
+        },
+        { 
+            accessorKey: 'notes', 
+            header: 'Catatan', 
+            size: 250,
+            Cell: ({ cell }) => cell.getValue<string>() || '-'
+        }
     ], []);
 
     // Common Table Options
@@ -184,17 +214,49 @@ const InventoryDashboard = () => {
         },
     };
 
+    const csvConfigCurrent = mkConfig({ fieldSeparator: ',', decimalSeparator: '.', useKeysAsHeaders: true, filename: 'Stok_Saat_Ini' });
+    const csvConfigHistory = mkConfig({ fieldSeparator: ',', decimalSeparator: '.', useKeysAsHeaders: true, filename: 'Riwayat_Stok' });
+
+    const handleExportCurrent = () => {
+        const exportData = currentStock.map(row => ({
+            'Kode SKU': row.sku_code || '',
+            'Nama Produk': row.product_name || '',
+            'Stok (Kg)': row.current_stock_kg || 0
+        }));
+        download(csvConfigCurrent)(generateCsv(csvConfigCurrent)(exportData));
+    };
+
+    const handleExportHistory = () => {
+        const exportData = historyLogs.map(row => ({
+            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleString('id-ID') : '',
+            'Tipe': row.transaction_type || '',
+            'Nama Produk': row.product_name || '-',
+            'Perubahan Qty (Kg)': row.qty_change || 0,
+            'Nama Vessel': row.vessel_name || '-',
+            'Nama Supplier': row.supplier_name || '-',
+            'Catatan': row.notes || '-'
+        }));
+        download(csvConfigHistory)(generateCsv(csvConfigHistory)(exportData));
+    };
+
     const currentTable = useMaterialReactTable({
         columns: currentColumns,
         data: currentStock,
-        ...commonTableOptions
+        ...commonTableOptions,
+        initialState: { sorting: [{ id: 'sku_code', desc: false }] },
+        renderTopToolbarCustomActions: () => (
+            <Button color="primary" onClick={handleExportCurrent} startIcon={<FileDownloadIcon />} variant="contained">Ekspor CSV</Button>
+        )
     });
 
     const historyTable = useMaterialReactTable({
         columns: historyColumns,
         data: historyLogs,
         ...commonTableOptions,
-        initialState: { sorting: [{ id: 'created_at', desc: true }] }
+        initialState: { sorting: [{ id: 'created_at', desc: true }] },
+        renderTopToolbarCustomActions: () => (
+            <Button color="primary" onClick={handleExportHistory} startIcon={<FileDownloadIcon />} variant="contained">Ekspor CSV</Button>
+        )
     });
 
     return (

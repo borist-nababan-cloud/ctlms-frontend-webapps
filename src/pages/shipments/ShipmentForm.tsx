@@ -8,7 +8,8 @@ import {
     Alert,
     Grid,
     FormControlLabel,
-    Checkbox
+    Checkbox,
+    CircularProgress
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
@@ -606,6 +607,7 @@ const ShipmentForm: React.FC<ShipmentFormProps> = ({ shipmentId, onSuccess, onCl
                         type="submit"
                         variant="contained"
                         disabled={loading || isLocked}
+                        startIcon={loading ? <CircularProgress size={20} color="inherit" /> : undefined}
                         sx={{
                             borderRadius: '8px',
                             background: isLocked ? undefined : 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)'

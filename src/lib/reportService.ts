@@ -123,6 +123,32 @@ export const reportService = {
         return data || [];
     },
 
+    // 2. Sales Out Ledger (Laporan Stok - Pengeluaran)
+    async getSalesOutLedger(companyId: string, role: number, dates: DateFilter) {
+        let query = supabase
+            .from('view_delivery_report')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (companyId && role !== 8 && role !== 1) {
+            query = query.eq('company_id', companyId);
+        }
+
+        if (dates.startDate) {
+            query = query.gte('created_at', `${dates.startDate}T00:00:00Z`);
+        }
+        if (dates.endDate) {
+            query = query.lte('created_at', `${dates.endDate}T23:59:59Z`);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            console.error('[reportService.getSalesOutLedger] Supabase error:', error);
+            throw error;
+        }
+        return data || [];
+    },
+
     // 3. Pembelian (Shipments)
     async getPembelian(companyId: string, role: number, dates: DateFilter) {
         
@@ -135,6 +161,8 @@ export const reportService = {
                 quantity,
                 created_at,
                 status,
+                asal_batu,
+                jenis_batu,
                 master_partners(name),
                 master_products(name)
             `)
@@ -204,27 +232,18 @@ export const reportService = {
     async getPengiriman(companyId: string, role: number, dates: DateFilter) {
         
         let query = supabase
-            .from('delivery_orders')
-            .select(`
-                id,
-                sj_number,
-                delivery_type,
-                net_weight,
-                created_at,
-                sales_orders(order_no, status, master_partners(name))
-            `)
+            .from('view_delivery_report')
+            .select('*')
             .order('created_at', { ascending: false });
 
-        if (role !== 8 && companyId) {
-            
+        if (companyId && role !== 8 && role !== 1) {
             query = query.eq('company_id', companyId);
         }
+
         if (dates.startDate) {
-            
             query = query.gte('created_at', `${dates.startDate}T00:00:00Z`);
         }
         if (dates.endDate) {
-            
             query = query.lte('created_at', `${dates.endDate}T23:59:59Z`);
         }
 

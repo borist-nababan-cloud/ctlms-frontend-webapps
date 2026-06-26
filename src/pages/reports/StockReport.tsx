@@ -29,12 +29,16 @@ const StockReport = () => {
 
     const [tableData, setTableData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [dateFilter, setDateFilter] = useState<DateFilter>({});
+    
+    const [dateFilter, setDateFilter] = useState<DateFilter>({
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+    });
     const [activeChip, setActiveChip] = useState<string>('All');
 
     // Date Picker States
-    const [startDate, setStartDate] = useState<Date | null>(null);
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [startDate, setStartDate] = useState<Date | null>(new Date());
+    const [endDate, setEndDate] = useState<Date | null>(new Date());
 
     // Filter stock !== 0 state
     const [showOnlyNonZeroStock, setShowOnlyNonZeroStock] = useState(false);
@@ -48,7 +52,8 @@ const StockReport = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const tData = await reportService.getCurrentStock(companyId, userRole);
+            // Task 2: Fetch from view_delivery_report
+            const tData = await reportService.getSalesOutLedger(companyId, userRole, dateFilter);
             setTableData(tData);
         } catch (err) {
             console.error('[StockReport] Error fetching stock report data:', err);
@@ -58,7 +63,9 @@ const StockReport = () => {
     };
 
     useEffect(() => {
-        fetchData();
+        if (dateFilter.startDate && dateFilter.endDate) {
+            fetchData();
+        }
     }, [companyId, userRole, dateFilter]);
 
     // Load products on mount
@@ -125,6 +132,8 @@ const StockReport = () => {
                 endDate: end.toISOString().split('T')[0]
             });
         } else {
+            // Default back to today if 'All' is selected, per global requirement? 
+            // Wait, "All" means no filter. 
             setDateFilter({});
         }
     };
@@ -148,17 +157,17 @@ const StockReport = () => {
 
     // Filtered table data for table & CSV export
     const filteredTableData = useMemo(() => {
-        if (showOnlyNonZeroStock) {
-            return tableData.filter(row => (row.current_stock_kg || 0) !== 0);
-        }
         return tableData;
-    }, [tableData, showOnlyNonZeroStock]);
+    }, [tableData]);
 
     const handleExportData = () => {
         const exportData = filteredTableData.map((row) => ({
-            'Produk': row.product_name,
-            'Stok (Kg)': row.current_stock_kg,
-            'Terakhir Diperbarui': row.last_updated
+            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '',
+            'Tipe': row.delivery_type || '',
+            'Produk Internal': row.internal_product_name || '',
+            'Qty (Kg)': row.qty_kg || 0,
+            'No. SJ': row.sj_number || '',
+            'Customer': row.customer_name || ''
         }));
         const csv = generateCsv(csvConfig)(exportData);
         download(csvConfig)(csv);
@@ -166,21 +175,33 @@ const StockReport = () => {
 
     const columns = useMemo(() => [
         {
-            accessorKey: 'product_name',
-            header: 'Nama Produk',
+            accessorKey: 'created_at',
+            header: 'Tanggal',
+            Cell: ({ cell }: any) => {
+                const val = cell.getValue();
+                return val ? new Date(val).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
+            }
         },
         {
-            accessorKey: 'current_stock_kg',
-            header: 'Stok Saat Ini (Kg)',
+            accessorKey: 'delivery_type',
+            header: 'Tipe',
+        },
+        {
+            accessorKey: 'internal_product_name',
+            header: 'Produk Internal',
+        },
+        {
+            accessorKey: 'qty_kg',
+            header: 'Qty (Kg)',
             Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0)
         },
         {
-            accessorKey: 'last_updated',
-            header: 'Pembaruan Terakhir',
-            Cell: ({ cell }: any) => {
-                const val = cell.getValue();
-                return val ? new Date(val).toLocaleString('id-ID') : '-';
-            }
+            accessorKey: 'sj_number',
+            header: 'No. SJ',
+        },
+        {
+            accessorKey: 'customer_name',
+            header: 'Customer',
         }
     ], []);
 

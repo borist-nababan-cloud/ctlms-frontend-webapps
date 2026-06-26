@@ -10,7 +10,8 @@ import {
     Box,
     AlertTitle,
     IconButton,
-    InputAdornment
+    InputAdornment,
+    CircularProgress
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -134,6 +135,7 @@ const Login = () => {
                             size="large"
                             disabled={loading}
                             fullWidth
+                            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
                         >
                             {loading ? t('common.loading') : t('auth.sign_in')}
                         </Button>

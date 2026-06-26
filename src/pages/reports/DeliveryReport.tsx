@@ -26,10 +26,13 @@ const DeliveryReport = () => {
 
     const [tableData, setTableData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [dateFilter, setDateFilter] = useState<DateFilter>({});
+    const [dateFilter, setDateFilter] = useState<DateFilter>({
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+    });
     
-    const [startDate, setStartDate] = useState<Date | null>(null);
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [startDate, setStartDate] = useState<Date | null>(new Date());
+    const [endDate, setEndDate] = useState<Date | null>(new Date());
 
     const fetchData = async () => {
         
@@ -75,12 +78,16 @@ const DeliveryReport = () => {
 
     const handleExportData = () => {
         const exportData = tableData.map(row => ({
-            'No. Pengiriman': row.sj_number || '',
-            'Tipe': row.delivery_type || '',
-            'Customer': row.sales_orders?.master_partners?.name || '',
-            'Netto (Kg)': row.net_weight || 0,
-            'Status': row.sales_orders?.status || '',
-            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : ''
+            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : '',
+            'No. SO': row.order_no || '',
+            'No. SJ': row.sj_number || '',
+            'Type': row.delivery_type || '',
+            'Customer': row.customer_name || '',
+            'Produk Publish': row.published_product || '',
+            'Produk Internal': row.internal_product_name || '',
+            'Qty (Kg)': row.qty_kg || 0,
+            'Blending': row.type_blending || '',
+            'Tipe Produksi': row.type_production || ''
         }));
         const csv = generateCsv(csvConfig)(exportData);
         download(csvConfig)(csv);
@@ -88,30 +95,58 @@ const DeliveryReport = () => {
 
     const columns = useMemo(() => [
         { 
+            accessorKey: 'created_at', 
+            header: 'Tanggal', 
+            Cell: ({ cell }: any) => {
+                const val = cell.getValue();
+                return val ? new Date(val).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
+            }
+        },
+        { 
+            accessorKey: 'order_no', 
+            header: 'No. SO',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        { 
             accessorKey: 'sj_number', 
-            header: 'No. Pengiriman' 
+            header: 'No. SJ',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
-            accessorKey: 'delivery_type', 
-            header: 'Tipe' 
+            accessorKey: 'customer_name', 
+            header: 'Customer',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
-            accessorKey: 'sales_orders.master_partners.name', 
-            header: 'Customer' 
+            accessorKey: 'published_product', 
+            header: 'Produk Publish',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
-            accessorKey: 'net_weight', 
-            header: 'Netto (Kg)', 
+            accessorKey: 'internal_product_name', 
+            header: 'Produk Internal',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        { 
+            accessorKey: 'qty_kg', 
+            header: 'Total Qty (Kg)', 
+            aggregationFn: 'sum',
+            AggregatedCell: ({ cell }: any) => (
+                <strong style={{ color: '#4caf50' }}>
+                    {new Intl.NumberFormat('id-ID').format(cell.getValue() || 0)}
+                </strong>
+            ),
             Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0) 
         },
         { 
-            accessorKey: 'sales_orders.status', 
-            header: 'Status' 
+            accessorKey: 'type_blending', 
+            header: 'Blending',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
-            accessorKey: 'created_at', 
-            header: 'Tanggal', 
-            Cell: ({ cell }: any) => new Date(cell.getValue()).toLocaleDateString('id-ID') 
+            accessorKey: 'type_production', 
+            header: 'Tipe Produksi',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         }
     ], []);
 
@@ -119,9 +154,13 @@ const DeliveryReport = () => {
         columns,
         data: tableData,
         state: { isLoading: loading },
+        enableGrouping: true,
+        getRowId: (originalRow, index) => String(index),
         initialState: {
             density: 'compact',
-            pagination: { pageSize: 10, pageIndex: 0 }
+            pagination: { pageSize: 10, pageIndex: 0 },
+            grouping: ['sj_number'],
+            expanded: true
         },
         paginationDisplayMode: 'pages',
         renderTopToolbarCustomActions: () => (

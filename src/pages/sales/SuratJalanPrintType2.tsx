@@ -226,14 +226,14 @@ export const SuratJalanPrintType2 = React.forwardRef<HTMLDivElement, SuratJalanP
                         <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', height: '55px' }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ width: '50%', borderRight: '1px solid #000000', verticalAlign: 'bottom', padding: '4px', fontSize: '10pt' }}>
+                                    <td style={{ width: '50%', borderRight: '1px solid #000000', verticalAlign: 'top', padding: '4px', fontSize: '10pt', whiteSpace: 'nowrap' }}>
                                         <div style={{ height: '25px' }}></div>
-                                        <div>Nama &nbsp;: ________________</div>
-                                        <div style={{ marginTop: '2px' }}>Jabatan: ________________</div>
+                                        <div>Nama &nbsp;: ____________</div>
+                                        <div style={{ marginTop: '2px' }}>Jabatan: ____________</div>
                                     </td>
-                                    <td style={{ width: '50%', verticalAlign: 'bottom', padding: '4px', fontSize: '10pt' }}>
+                                    <td style={{ width: '50%', verticalAlign: 'top', padding: '4px', fontSize: '10pt', whiteSpace: 'nowrap' }}>
                                         <div style={{ height: '25px' }}></div>
-                                        <div>Nama &nbsp;: ________________</div>
+                                        <div>Nama &nbsp;: ____________</div>
                                         <div style={{ marginTop: '2px' }}>Jabatan: PENGEMUDI</div>
                                     </td>
                                 </tr>
@@ -247,15 +247,15 @@ export const SuratJalanPrintType2 = React.forwardRef<HTMLDivElement, SuratJalanP
                         <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', height: '55px' }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ width: '50%', borderRight: '1px solid #000000', verticalAlign: 'bottom', padding: '4px', fontSize: '10pt' }}>
+                                    <td style={{ width: '50%', borderRight: '1px solid #000000', verticalAlign: 'top', padding: '4px', fontSize: '10pt', whiteSpace: 'nowrap' }}>
                                         <div style={{ height: '25px' }}></div>
-                                        <div>Nama &nbsp;: ________________</div>
-                                        <div style={{ marginTop: '2px' }}>Jabatan: ________________</div>
+                                        <div>Nama &nbsp;: ____________</div>
+                                        <div style={{ marginTop: '2px' }}>Jabatan: ____________</div>
                                     </td>
-                                    <td style={{ width: '50%', verticalAlign: 'bottom', padding: '4px', fontSize: '10pt' }}>
+                                    <td style={{ width: '50%', verticalAlign: 'top', padding: '4px', fontSize: '10pt', whiteSpace: 'nowrap' }}>
                                         <div style={{ height: '25px' }}></div>
-                                        <div>Nama &nbsp;: ________________</div>
-                                        <div style={{ marginTop: '2px' }}>Jabatan: ________________</div>
+                                        <div>Nama &nbsp;: ____________</div>
+                                        <div style={{ marginTop: '2px' }}>Jabatan: ____________</div>
                                     </td>
                                 </tr>
                             </tbody>
