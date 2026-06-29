@@ -30,6 +30,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useColorMode } from '../../context/ThemeContext';
 import { containsHtmlOrScript } from '../../lib/sanitizer';
 import { inventoryAdjustmentService, type InventoryAdjustmentRecord } from '../../lib/inventoryAdjustmentService';
+import { deliveryService } from '../../lib/deliveryService';
 
 const InventoryAdjustment = () => {
     const { mode } = useColorMode();
@@ -49,6 +50,10 @@ const InventoryAdjustment = () => {
     // Requester Form View States
     const [products, setProducts] = useState<any[]>([]);
     const [selectedProductId, setSelectedProductId] = useState<string>('');
+    const [shipments, setShipments] = useState<any[]>([]);
+    const [selectedShipmentId, setSelectedShipmentId] = useState<string>('');
+    const [loadingShipments, setLoadingShipments] = useState(false);
+    
     const [systemStock, setSystemStock] = useState<number>(0);
     const [loadingStock, setLoadingStock] = useState(false);
     const [actualStock, setActualStock] = useState<string>('');
@@ -72,7 +77,7 @@ const InventoryAdjustment = () => {
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const data = await inventoryAdjustmentService.getProductsForAdjustment();
+            const data = await inventoryAdjustmentService.getProductsForAdjustment(!isSuperuser && profile?.company_id ? profile.company_id : undefined);
             setProducts(data);
         } catch (err) {
             console.error('Error fetching products for dropdown:', err);
@@ -95,17 +100,22 @@ const InventoryAdjustment = () => {
         initView();
     }, [profile, isSuperuser]);
 
-    // Handle selected product current stock lookup
+    // Handle selected product current stock and shipment lookup
     useEffect(() => {
         if (!selectedProductId) {
             setSystemStock(0);
+            setShipments([]);
+            setSelectedShipmentId('');
             return;
         }
 
         const fetchSystemStock = async () => {
             setLoadingStock(true);
             try {
-                const stock = await inventoryAdjustmentService.getCurrentStockForProduct(selectedProductId);
+                const stock = await inventoryAdjustmentService.getCurrentStockForProduct(
+                    selectedProductId,
+                    !isSuperuser && profile?.company_id ? profile.company_id : undefined
+                );
                 setSystemStock(stock);
             } catch (err) {
                 console.error('Error querying product stock:', err);
@@ -115,7 +125,20 @@ const InventoryAdjustment = () => {
             }
         };
 
+        const fetchShipments = async () => {
+            setLoadingShipments(true);
+            try {
+                const data = await deliveryService.getShipmentsByProduct(selectedProductId);
+                setShipments(data);
+            } catch (err) {
+                console.error('Error fetching shipments for product:', err);
+            } finally {
+                setLoadingShipments(false);
+            }
+        };
+
         fetchSystemStock();
+        fetchShipments();
     }, [selectedProductId]);
 
     // Requester submit request handler
@@ -125,6 +148,11 @@ const InventoryAdjustment = () => {
 
         if (!selectedProductId) {
             setError('Silakan pilih produk terlebih dahulu.');
+            return;
+        }
+
+        if (!selectedShipmentId) {
+            setError('Silakan pilih pengiriman (shipment) terlebih dahulu.');
             return;
         }
 
@@ -145,23 +173,28 @@ const InventoryAdjustment = () => {
             return;
         }
 
-        if (!profile?.company_id) {
-            setError('Profil pengguna tidak memiliki data perusahaan yang valid.');
+        if (!profile?.company_id || !profile?.uuid) {
+            setError('Profil pengguna tidak memiliki data perusahaan/user yang valid.');
             return;
         }
 
         setSubmitting(true);
         try {
-            await inventoryAdjustmentService.submitAdjustmentRequest({
+            const payload = {
                 company_id: profile.company_id,
                 product_id: selectedProductId,
+                shipment_id: selectedShipmentId,
                 current_stock_snapshot: systemStock,
                 actual_stock: parsedActualStock,
-                notes: trimmedNotes
-            });
+                notes: trimmedNotes,
+                created_by: profile.uuid
+            };
+
+            await inventoryAdjustmentService.submitAdjustmentRequest(payload);
 
             // Reset form states
             setSelectedProductId('');
+            setSelectedShipmentId('');
             setActualStock('');
             setNotes('');
             setSystemStock(0);
@@ -213,6 +246,7 @@ const InventoryAdjustment = () => {
             accessorKey: 'product_name',
             header: 'Nama Produk',
             size: 200,
+            Cell: ({ cell }) => cell.getValue<string>() || '-',
         },
         {
             accessorKey: 'current_stock_snapshot',
@@ -233,14 +267,13 @@ const InventoryAdjustment = () => {
             Cell: ({ row }) => {
                 const system = row.original.current_stock_snapshot || 0;
                 const actual = row.original.actual_stock || 0;
-                const calculated = system - actual;
+                const calculated = actual - system;
 
-                // If System > Actual (calculated > 0), there is a deficit of stock (Red)
-                // If System < Actual (calculated < 0), there is a surplus of stock (Green)
-                const color = calculated > 0 ? '#ef4444' : calculated < 0 ? '#22c55e' : 'inherit';
+                const color = calculated > 0 ? '#4caf50' : calculated < 0 ? '#f44336' : 'inherit';
+                const prefix = calculated > 0 ? '+' : '';
                 return (
                     <span style={{ color, fontWeight: 'bold' }}>
-                        {new Intl.NumberFormat('id-ID').format(calculated)}
+                        {prefix}{new Intl.NumberFormat('id-ID').format(calculated)}
                     </span>
                 );
             }
@@ -455,6 +488,23 @@ const InventoryAdjustment = () => {
                                             ))}
                                         </TextField>
 
+                                        <TextField
+                                            select
+                                            label="Pilih Pengiriman (Shipment)"
+                                            fullWidth
+                                            size="small"
+                                            value={selectedShipmentId}
+                                            onChange={(e) => setSelectedShipmentId(e.target.value)}
+                                            disabled={loadingShipments || !selectedProductId || shipments.length === 0}
+                                            required
+                                        >
+                                            {shipments.map(s => (
+                                                <MenuItem key={s.id} value={s.id}>
+                                                    {s.vessel_name || '-'} (Inv: {s.invoice_no || '-'}) - {s.supplier_name || '-'}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+
                                         <Grid container spacing={2}>
                                             <Grid size={{ xs: 6 }}>
                                                 <TextField
@@ -499,7 +549,7 @@ const InventoryAdjustment = () => {
                                             type="submit"
                                             variant="contained"
                                             fullWidth
-                                            disabled={submitting || loadingStock || !selectedProductId}
+                                            disabled={submitting || loadingStock || !selectedProductId || !selectedShipmentId}
                                             startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                                             sx={{
                                                 borderRadius: '20px',

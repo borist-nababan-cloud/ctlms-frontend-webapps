@@ -1,12 +1,12 @@
-// TODO: Implement Role-Based Access Control here. Only allow specific roles to access.
-
 import { useState, useEffect, useMemo } from 'react';
 import {
     Container,
     Box,
     Typography,
     Paper,
-    Button
+    Button,
+    TextField,
+    MenuItem
 } from '@mui/material';
 import { MaterialReactTable, useMaterialReactTable } from 'material-react-table';
 import { useAuth } from '../../context/AuthContext';
@@ -26,17 +26,19 @@ const AdjustmentReport = () => {
 
     const [tableData, setTableData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [dateFilter, setDateFilter] = useState<DateFilter>({});
+    const [dateFilter, setDateFilter] = useState<DateFilter>({
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+    });
+    const [statusFilter, setStatusFilter] = useState('ALL');
     
-    const [startDate, setStartDate] = useState<Date | null>(null);
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [startDate, setStartDate] = useState<Date | null>(new Date());
+    const [endDate, setEndDate] = useState<Date | null>(new Date());
 
     const fetchData = async () => {
-        
         setLoading(true);
         try {
-            const data = await reportService.getAdjustments(companyId, userRole, dateFilter);
-            
+            const data = await reportService.getAdjustments(companyId, userRole, dateFilter, statusFilter);
             setTableData(data);
         } catch (err) {
             console.error('[AdjustmentReport] Error fetching adjustment report:', err);
@@ -47,7 +49,7 @@ const AdjustmentReport = () => {
 
     useEffect(() => {
         fetchData();
-    }, [companyId, userRole, dateFilter]);
+    }, [companyId, userRole, dateFilter, statusFilter]);
 
     const applyCustomDate = () => {
         if (startDate && endDate) {
@@ -55,15 +57,7 @@ const AdjustmentReport = () => {
                 startDate: startDate.toISOString().split('T')[0],
                 endDate: endDate.toISOString().split('T')[0]
             });
-        } else {
-            setDateFilter({});
         }
-    };
-
-    const handleReset = () => {
-        setStartDate(null);
-        setEndDate(null);
-        setDateFilter({});
     };
 
     const csvConfig = mkConfig({
@@ -73,14 +67,26 @@ const AdjustmentReport = () => {
         filename: 'Laporan_Penyesuaian_Stok'
     });
 
+    const getDifference = (row: any) => {
+        const selisih = row.selisih ?? row.difference;
+        if (selisih !== undefined && selisih !== null) return Number(selisih);
+        return (Number(row.actual_stock) || 0) - (Number(row.qty_current) || 0);
+    };
+
     const handleExportData = () => {
         const exportData = tableData.map(row => ({
-            'Produk': row.master_products?.name || '',
-            'Stok Sistem (Kg)': row.current_stock_snapshot || 0,
-            'Stok Aktual (Kg)': row.actual_stock || 0,
+            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '',
+            'No. Invoice': row.invoice_no || '-',
+            'Supplier': row.supplier_name || '-',
+            'Nama Vessel': row.vessel_name || '-',
+            'Nama Produk': row.product_name || '-',
+            'Qty Setelah Input': row.actual_stock || 0,
+            'Stok Saat Input': row.qty_current || 0,
+            'Selisih': getDifference(row),
             'Status': row.status || '',
-            'Catatan': row.notes || '',
-            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : ''
+            'Keterangan': row.notes || '-',
+            'Dibuat Oleh': row.user_create || '-',
+            'Disetujui Oleh': row.user_approve || '-'
         }));
         const csv = generateCsv(csvConfig)(exportData);
         download(csvConfig)(csv);
@@ -88,31 +94,76 @@ const AdjustmentReport = () => {
 
     const columns = useMemo(() => [
         { 
-            accessorKey: 'master_products.name', 
-            header: 'Produk' 
+            accessorKey: 'created_at', 
+            header: 'Tanggal', 
+            Cell: ({ cell }: any) => {
+                const val = cell.getValue();
+                return val ? new Date(val).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
+            }
         },
         { 
-            accessorKey: 'current_stock_snapshot', 
-            header: 'Stok Sistem (Kg)', 
-            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0) 
+            accessorKey: 'invoice_no', 
+            header: 'No. Invoice',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
-            accessorKey: 'actual_stock', 
-            header: 'Stok Aktual (Kg)', 
-            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0) 
+            accessorKey: 'supplier_name', 
+            header: 'Supplier',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        { 
+            accessorKey: 'vessel_name', 
+            header: 'Nama Vessel',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        { 
+            accessorKey: 'product_name', 
+            header: 'Nama Produk',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'actual_stock',
+            header: 'Qty Setelah Input',
+            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(Number(cell.getValue()) || 0)
+        },
+        {
+            accessorKey: 'qty_current',
+            header: 'Stok Saat Input',
+            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(Number(cell.getValue()) || 0)
+        },
+        { 
+            id: 'selisih', 
+            header: 'Selisih', 
+            accessorFn: (row: any) => getDifference(row),
+            Cell: ({ cell }: any) => {
+                const val = Number(cell.getValue());
+                const color = val > 0 ? '#4caf50' : val < 0 ? '#f44336' : 'inherit';
+                const prefix = val > 0 ? '+' : '';
+                return (
+                    <span style={{ color, fontWeight: 'bold' }}>
+                        {prefix}{new Intl.NumberFormat('id-ID').format(val)}
+                    </span>
+                );
+            }
         },
         { 
             accessorKey: 'status', 
             header: 'Status' 
         },
-        { 
-            accessorKey: 'notes', 
-            header: 'Catatan' 
+        {
+            accessorKey: 'notes',
+            header: 'Keterangan',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         },
-        { 
-            accessorKey: 'created_at', 
-            header: 'Tanggal', 
-            Cell: ({ cell }: any) => new Date(cell.getValue()).toLocaleDateString('id-ID') 
+        {
+            accessorKey: 'user_create',
+            header: 'Dibuat Oleh',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'user_approve',
+            header: 'Disetujui Oleh',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         }
     ], []);
 
@@ -140,6 +191,11 @@ const AdjustmentReport = () => {
             >
                 Ekspor CSV
             </Button>
+        ),
+        renderEmptyRowsFallback: () => (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+                <Typography color="text.secondary">Tidak ada data ditemukan</Typography>
+            </Box>
         ),
         // Futuristic Glass Theme Props
         muiTablePaperProps: {
@@ -187,7 +243,7 @@ const AdjustmentReport = () => {
         <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    Laporan Penyesuaian Stok (Adjustment)
+                    Laporan Penyesuaian Stok
                 </Typography>
             </Box>
 
@@ -212,20 +268,34 @@ const AdjustmentReport = () => {
                 <Typography variant="subtitle2" sx={{ mr: 1 }}>Filter Tanggal:</Typography>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                     <DatePicker 
-                        label="Tanggal Mulai" 
+                        label="Pilih Tanggal Mulai" 
                         value={startDate} 
                         onChange={(newValue) => setStartDate(newValue)}
                         slotProps={{ textField: { size: 'small' } }}
                     />
                     <DatePicker 
-                        label="Tanggal Akhir" 
+                        label="Pilih Tanggal Selesai" 
                         value={endDate} 
                         onChange={(newValue) => setEndDate(newValue)}
                         slotProps={{ textField: { size: 'small' } }}
                     />
                 </LocalizationProvider>
+                
+                <TextField
+                    select
+                    label="Status"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    size="small"
+                    sx={{ minWidth: 150 }}
+                >
+                    <MenuItem value="ALL">Semua</MenuItem>
+                    <MenuItem value="ON_REQUEST">ON REQUEST</MenuItem>
+                    <MenuItem value="APPROVED">APPROVED</MenuItem>
+                    <MenuItem value="REJECTED">REJECTED</MenuItem>
+                </TextField>
+
                 <Button variant="outlined" onClick={applyCustomDate} sx={{ borderRadius: '20px', textTransform: 'none' }}>Tampilkan</Button>
-                <Button variant="text" color="secondary" onClick={handleReset} sx={{ borderRadius: '20px', textTransform: 'none' }}>Reset</Button>
             </Paper>
 
             <MaterialReactTable table={table} />

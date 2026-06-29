@@ -1,5 +1,3 @@
-// TODO: Implement Role-Based Access Control here. Only allow specific roles to access.
-
 import { useState, useEffect, useMemo } from 'react';
 import {
     Container,
@@ -26,17 +24,18 @@ const TcpReport = () => {
 
     const [tableData, setTableData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [dateFilter, setDateFilter] = useState<DateFilter>({});
+    const [dateFilter, setDateFilter] = useState<DateFilter>({
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+    });
     
-    const [startDate, setStartDate] = useState<Date | null>(null);
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [startDate, setStartDate] = useState<Date | null>(new Date());
+    const [endDate, setEndDate] = useState<Date | null>(new Date());
 
     const fetchData = async () => {
-        
         setLoading(true);
         try {
             const data = await reportService.getTcp(companyId, userRole, dateFilter);
-            
             setTableData(data);
         } catch (err) {
             console.error('[TcpReport] Error fetching TCP report:', err);
@@ -55,15 +54,7 @@ const TcpReport = () => {
                 startDate: startDate.toISOString().split('T')[0],
                 endDate: endDate.toISOString().split('T')[0]
             });
-        } else {
-            setDateFilter({});
         }
-    };
-
-    const handleReset = () => {
-        setStartDate(null);
-        setEndDate(null);
-        setDateFilter({});
     };
 
     const csvConfig = mkConfig({
@@ -73,13 +64,27 @@ const TcpReport = () => {
         filename: 'Laporan_TCP'
     });
 
+    const getDifference = (row: any) => {
+        const selisih = row.difference ?? row.selisih;
+        if (selisih !== undefined && selisih !== null) return Number(selisih);
+        return (Number(row.actual_stock) || 0) - (Number(row.current_stock_snapshot) || Number(row.system_stock) || 0);
+    };
+
     const handleExportData = () => {
         const exportData = tableData.map(row => ({
-            'No. Invoice': row.shipments?.invoice_no || '',
-            'Produk': row.master_products?.name || '',
-            'Nilai TCP (Kg)': row.tcp_value || 0,
-            'Stok Aktual (Kg)': row.actual_stock || 0,
-            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : ''
+            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '',
+            'No. Invoice': row.invoice_no || '-',
+            'Supplier': row.supplier_name || '-',
+            'Nama Vessel': row.vessel_name || '-',
+            'Nama Produk': row.product_name || '-',
+            'Qty Invoice': row.qty_invoice || 0,
+            'Qty TCP': row.tcp_value || row.qty_tcp || 0,
+            'Total Keluar': row.total_out || 0,
+            'Stok Sistem': row.current_stock_snapshot || row.system_stock || 0,
+            'Stok Aktual': row.actual_stock || 0,
+            'Selisih': getDifference(row),
+            'Dibuat Oleh': row.created_by_name || '-',
+            'Notes': row.notes || '-'
         }));
         const csv = generateCsv(csvConfig)(exportData);
         download(csvConfig)(csv);
@@ -87,27 +92,84 @@ const TcpReport = () => {
 
     const columns = useMemo(() => [
         { 
-            accessorKey: 'shipments.invoice_no', 
-            header: 'No. Invoice' 
-        },
-        { 
-            accessorKey: 'master_products.name', 
-            header: 'Produk' 
-        },
-        { 
-            accessorKey: 'tcp_value', 
-            header: 'Nilai TCP (Kg)', 
-            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0) 
-        },
-        { 
-            accessorKey: 'actual_stock', 
-            header: 'Stok Aktual (Kg)', 
-            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0) 
-        },
-        { 
             accessorKey: 'created_at', 
             header: 'Tanggal', 
-            Cell: ({ cell }: any) => new Date(cell.getValue()).toLocaleDateString('id-ID') 
+            Cell: ({ cell }: any) => {
+                const val = cell.getValue();
+                return val ? new Date(val).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
+            }
+        },
+        { 
+            accessorKey: 'invoice_no', 
+            header: 'No. Invoice',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        { 
+            accessorKey: 'supplier_name', 
+            header: 'Supplier',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        { 
+            accessorKey: 'vessel_name', 
+            header: 'Nama Vessel',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        { 
+            accessorKey: 'product_name', 
+            header: 'Nama Produk',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'qty_invoice',
+            header: 'Qty Invoice',
+            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(Number(cell.getValue()) || 0)
+        },
+        {
+            id: 'qty_tcp',
+            accessorFn: (row: any) => row.tcp_value ?? row.qty_tcp,
+            header: 'Qty TCP',
+            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(Number(cell.getValue()) || 0)
+        },
+        {
+            accessorKey: 'total_out',
+            header: 'Total Keluar',
+            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(Number(cell.getValue()) || 0)
+        },
+        {
+            id: 'system_stock',
+            accessorFn: (row: any) => row.current_stock_snapshot ?? row.system_stock,
+            header: 'Stok Sistem',
+            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(Number(cell.getValue()) || 0)
+        },
+        {
+            accessorKey: 'actual_stock',
+            header: 'Stok Aktual',
+            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(Number(cell.getValue()) || 0)
+        },
+        { 
+            id: 'selisih', 
+            header: 'Selisih', 
+            accessorFn: (row: any) => getDifference(row),
+            Cell: ({ cell }: any) => {
+                const val = Number(cell.getValue());
+                const color = val > 0 ? '#4caf50' : val < 0 ? '#f44336' : 'inherit';
+                const prefix = val > 0 ? '+' : '';
+                return (
+                    <span style={{ color, fontWeight: 'bold' }}>
+                        {prefix}{new Intl.NumberFormat('id-ID').format(val)}
+                    </span>
+                );
+            }
+        },
+        {
+            accessorKey: 'created_by_name',
+            header: 'Dibuat Oleh',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'notes',
+            header: 'Notes',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         }
     ], []);
 
@@ -135,6 +197,11 @@ const TcpReport = () => {
             >
                 Ekspor CSV
             </Button>
+        ),
+        renderEmptyRowsFallback: () => (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+                <Typography color="text.secondary">Tidak ada data ditemukan</Typography>
+            </Box>
         ),
         // Futuristic Glass Theme Props
         muiTablePaperProps: {
@@ -182,7 +249,7 @@ const TcpReport = () => {
         <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    Laporan TCP
+                    Laporan TCP (Konsolidasi Stok)
                 </Typography>
             </Box>
 
@@ -207,20 +274,19 @@ const TcpReport = () => {
                 <Typography variant="subtitle2" sx={{ mr: 1 }}>Filter Tanggal:</Typography>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                     <DatePicker 
-                        label="Tanggal Mulai" 
+                        label="Pilih Tanggal Mulai" 
                         value={startDate} 
                         onChange={(newValue) => setStartDate(newValue)}
                         slotProps={{ textField: { size: 'small' } }}
                     />
                     <DatePicker 
-                        label="Tanggal Akhir" 
+                        label="Pilih Tanggal Selesai" 
                         value={endDate} 
                         onChange={(newValue) => setEndDate(newValue)}
                         slotProps={{ textField: { size: 'small' } }}
                     />
                 </LocalizationProvider>
                 <Button variant="outlined" onClick={applyCustomDate} sx={{ borderRadius: '20px', textTransform: 'none' }}>Tampilkan</Button>
-                <Button variant="text" color="secondary" onClick={handleReset} sx={{ borderRadius: '20px', textTransform: 'none' }}>Reset</Button>
             </Paper>
 
             <MaterialReactTable table={table} />

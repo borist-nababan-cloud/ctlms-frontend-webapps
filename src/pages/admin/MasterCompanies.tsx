@@ -10,7 +10,8 @@ import {
     DialogActions,
     TextField,
     Alert,
-    Grid
+    Grid,
+    MenuItem
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Image as ImageIcon } from '@mui/icons-material';
 import {
@@ -56,7 +57,8 @@ const MasterCompanies = () => {
             email: '',
             mobile: '',
             fixline: '',
-            logo_url: ''
+            logo_url: '',
+            type_sj: 1
         }
     });
 
@@ -137,6 +139,12 @@ const MasterCompanies = () => {
             header: t('companies.pic_name'),
             size: 200,
         },
+        {
+            accessorKey: 'type_sj',
+            header: 'Type Surat Jalan',
+            size: 150,
+            Cell: ({ cell }) => `Type ${cell.getValue<number>() || 1}`,
+        },
     ], [t]);
 
     // Handlers
@@ -156,7 +164,8 @@ const MasterCompanies = () => {
             email: '',
             mobile: '',
             fixline: '',
-            logo_url: ''
+            logo_url: '',
+            type_sj: 1
         });
         setOpen(true);
     };
@@ -189,7 +198,8 @@ const MasterCompanies = () => {
             email: '',
             mobile: '',
             fixline: '',
-            logo_url: ''
+            logo_url: '',
+            type_sj: 1
         });
     };
 
@@ -620,6 +630,26 @@ const MasterCompanies = () => {
                                             label={t('companies.fixline')}
                                             fullWidth
                                         />
+                                    )}
+                                />
+                            </Grid>
+
+                            {/* Type Surat Jalan: Grid size={12} */}
+                            <Grid size={12}>
+                                <Controller
+                                    name="type_sj"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            select
+                                            label="Type Surat Jalan"
+                                            fullWidth
+                                        >
+                                            <MenuItem value={1}>Type 1</MenuItem>
+                                            <MenuItem value={2}>Type 2</MenuItem>
+                                            <MenuItem value={3}>Type 3</MenuItem>
+                                        </TextField>
                                     )}
                                 />
                             </Grid>

@@ -4,18 +4,12 @@ import {
     Box,
     Typography,
     Paper,
-    Grid,
-    Chip,
-    Button,
-    FormControlLabel,
-    Checkbox,
-    MenuItem,
-    TextField
+    Button
 } from '@mui/material';
 import { MaterialReactTable, useMaterialReactTable } from 'material-react-table';
 import { useAuth } from '../../context/AuthContext';
+import { useColorMode } from '../../context/ThemeContext';
 import { reportService, type DateFilter } from '../../lib/reportService';
-import { deliveryService } from '../../lib/deliveryService';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -24,122 +18,39 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
 const StockReport = () => {
     const { profile } = useAuth();
+    const { mode } = useColorMode();
     const companyId = profile?.company_id || '';
     const userRole = profile?.user_role ? Number(profile.user_role) : 0;
 
-    const [tableData, setTableData] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
+    // --- Section 1: Riwayat Pergerakan Stok ---
+    const [historyData, setHistoryData] = useState<any[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
     
     const [dateFilter, setDateFilter] = useState<DateFilter>({
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0]
     });
-    const [activeChip, setActiveChip] = useState<string>('All');
-
-    // Date Picker States
+    
     const [startDate, setStartDate] = useState<Date | null>(new Date());
     const [endDate, setEndDate] = useState<Date | null>(new Date());
 
-    // Filter stock !== 0 state
-    const [showOnlyNonZeroStock, setShowOnlyNonZeroStock] = useState(false);
-
-    // Mutasi Stock States
-    const [products, setProducts] = useState<any[]>([]);
-    const [selectedProductId, setSelectedProductId] = useState<string>('');
-    const [mutationData, setMutationData] = useState<any[]>([]);
-    const [loadingMutations, setLoadingMutations] = useState(false);
-
-    const fetchData = async () => {
-        setLoading(true);
+    const fetchHistoryData = async () => {
+        setLoadingHistory(true);
         try {
-            // Task 2: Fetch from view_delivery_report
-            const tData = await reportService.getSalesOutLedger(companyId, userRole, dateFilter);
-            setTableData(tData);
+            const data = await reportService.getStockMovementHistory(companyId, userRole, dateFilter);
+            setHistoryData(data);
         } catch (err) {
-            console.error('[StockReport] Error fetching stock report data:', err);
+            console.error('[StockReport] Error fetching movement history:', err);
         } finally {
-            setLoading(false);
+            setLoadingHistory(false);
         }
     };
 
     useEffect(() => {
-        if (dateFilter.startDate && dateFilter.endDate) {
-            fetchData();
-        }
+        fetchHistoryData();
     }, [companyId, userRole, dateFilter]);
 
-    // Load products on mount
-    useEffect(() => {
-        const loadProducts = async () => {
-            try {
-                const prod = await deliveryService.getInternalProducts();
-                setProducts(prod);
-            } catch (err) {
-                console.error('[StockReport] Error loading raw products:', err);
-            }
-        };
-        loadProducts();
-    }, []);
-
-    // Load mutations when product changes
-    useEffect(() => {
-        if (!selectedProductId) {
-            setMutationData([]);
-            return;
-        }
-
-        const fetchMutations = async () => {
-            setLoadingMutations(true);
-            try {
-                const data = await reportService.getStockMutations(selectedProductId, companyId, userRole);
-                setMutationData(data);
-            } catch (err) {
-                console.error('[StockReport] Error fetching mutations:', err);
-            } finally {
-                setLoadingMutations(false);
-            }
-        };
-
-        fetchMutations();
-    }, [selectedProductId, companyId, userRole]);
-
-    const handleChipFilter = (filter: string) => {
-        setActiveChip(filter);
-        const now = new Date();
-        let start: Date | null = null;
-        let end: Date | null = now;
-
-        if (filter === 'Minggu Ini') {
-            const day = now.getDay() || 7; 
-            if (day !== 1) now.setHours(-24 * (day - 1)); 
-            start = new Date(now);
-        } else if (filter === 'Bulan Ini') {
-            start = new Date(now.getFullYear(), now.getMonth(), 1);
-        } else if (filter === 'Tahun Ini') {
-            start = new Date(now.getFullYear(), 0, 1);
-        } else {
-            start = null;
-            end = null;
-            setStartDate(null);
-            setEndDate(null);
-        }
-
-        if (start && end) {
-            setStartDate(start);
-            setEndDate(end);
-            setDateFilter({
-                startDate: start.toISOString().split('T')[0],
-                endDate: end.toISOString().split('T')[0]
-            });
-        } else {
-            // Default back to today if 'All' is selected, per global requirement? 
-            // Wait, "All" means no filter. 
-            setDateFilter({});
-        }
-    };
-
-    const applyCustomDate = () => {
-        setActiveChip('Custom');
+    const applyHistoryDate = () => {
         if (startDate && endDate) {
             setDateFilter({
                 startDate: startDate.toISOString().split('T')[0],
@@ -148,254 +59,339 @@ const StockReport = () => {
         }
     };
 
-    const csvConfig = mkConfig({
+    const csvConfigHistory = mkConfig({
         fieldSeparator: ',',
         decimalSeparator: '.',
         useKeysAsHeaders: true,
-        filename: 'Laporan_Stok'
+        filename: 'Riwayat_Pergerakan_Stok'
     });
 
-    // Filtered table data for table & CSV export
-    const filteredTableData = useMemo(() => {
-        return tableData;
-    }, [tableData]);
-
-    const handleExportData = () => {
-        const exportData = filteredTableData.map((row) => ({
-            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '',
-            'Tipe': row.delivery_type || '',
-            'Produk Internal': row.internal_product_name || '',
-            'Qty (Kg)': row.qty_kg || 0,
+    const handleExportHistory = () => {
+        const exportData = historyData.map(row => ({
+            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleString('id-ID') : '',
+            'Tipe': row.transaction_type || '',
+            'Nama Produk': row.product_name || '',
+            'Qty (Kg)': row.qty_change || 0,
             'No. SJ': row.sj_number || '',
-            'Customer': row.customer_name || ''
+            'Customer': row.customer_name || '',
+            'Supplier': row.supplier_name || ''
         }));
-        const csv = generateCsv(csvConfig)(exportData);
-        download(csvConfig)(csv);
+        const csv = generateCsv(csvConfigHistory)(exportData);
+        download(csvConfigHistory)(csv);
     };
 
-    const columns = useMemo(() => [
-        {
-            accessorKey: 'created_at',
-            header: 'Tanggal',
-            Cell: ({ cell }: any) => {
-                const val = cell.getValue();
-                return val ? new Date(val).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
-            }
-        },
-        {
-            accessorKey: 'delivery_type',
-            header: 'Tipe',
-        },
-        {
-            accessorKey: 'internal_product_name',
-            header: 'Produk Internal',
-        },
-        {
-            accessorKey: 'qty_kg',
-            header: 'Qty (Kg)',
-            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0)
-        },
-        {
-            accessorKey: 'sj_number',
-            header: 'No. SJ',
-        },
-        {
-            accessorKey: 'customer_name',
-            header: 'Customer',
-        }
-    ], []);
-
-    const table = useMaterialReactTable({
-        columns,
-        data: filteredTableData,
-        state: { isLoading: loading },
-        renderTopToolbarCustomActions: () => (
-            <Button
-                color="primary"
-                onClick={handleExportData}
-                startIcon={<FileDownloadIcon />}
-                variant="contained"
-            >
-                Ekspor CSV
-            </Button>
-        ),
-    });
-
-    // Mutasi Stock table columns and hook
-    const mutationColumns = useMemo(() => [
+    const historyColumns = useMemo(() => [
         {
             accessorKey: 'created_at',
             header: 'Tanggal',
             Cell: ({ cell }: any) => {
                 const val = cell.getValue();
                 return val ? new Date(val).toLocaleString('id-ID', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
+                    day: '2-digit', month: 'long', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
                 }) : '-';
             }
         },
         {
             accessorKey: 'transaction_type',
-            header: 'Tipe Transaksi',
-            Cell: ({ cell }: any) => {
-                const val = cell.getValue();
-                if (val === 'TALLY_IN') return <Chip label="Pembelian" color="success" size="small" sx={{ fontWeight: 'bold' }} />;
-                if (val === 'SALES_OUT') return <Chip label="Penjualan" color="error" size="small" sx={{ fontWeight: 'bold' }} />;
-                if (val === 'ADJUSTMENT') return <Chip label="Penyesuaian" color="warning" size="small" sx={{ fontWeight: 'bold' }} />;
-                return val;
-            }
+            header: 'Tipe'
+        },
+        {
+            accessorKey: 'product_name',
+            header: 'Nama Produk'
         },
         {
             accessorKey: 'qty_change',
-            header: 'Jumlah (Kg)',
+            header: 'Qty (Kg)',
             Cell: ({ cell }: any) => {
                 const val = Number(cell.getValue()) || 0;
                 const isPositive = val > 0;
                 const prefix = isPositive ? '+' : '';
                 const color = isPositive ? '#22c55e' : '#ef4444';
                 return (
-                    <span style={{ color, fontWeight: 'bold' }}>
+                    <strong style={{ color }}>
                         {prefix}{new Intl.NumberFormat('id-ID').format(val)}
-                    </span>
+                    </strong>
                 );
             }
         },
         {
-            accessorKey: 'detail_label',
-            header: 'Referensi (Vessel / Surat Jalan)',
+            accessorKey: 'sj_number',
+            header: 'No. SJ',
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         {
-            accessorKey: 'notes',
-            header: 'Catatan',
+            accessorKey: 'customer_name',
+            header: 'Customer',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'supplier_name',
+            header: 'Supplier',
             Cell: ({ cell }: any) => cell.getValue() || '-'
         }
     ], []);
 
-    const mutationTable = useMaterialReactTable({
-        columns: mutationColumns,
-        data: mutationData,
-        state: { isLoading: loadingMutations },
-        enableRowSelection: false,
-        enableFilters: true,
-        enableGlobalFilter: true,
-        renderTopToolbarCustomActions: () => {
-            const handleExportMutation = () => {
-                const config = mkConfig({
-                    fieldSeparator: ',',
-                    decimalSeparator: '.',
-                    useKeysAsHeaders: true,
-                    filename: 'Mutasi_Stok'
-                });
-                const exportData = mutationData.map((row) => ({
-                    'Tanggal': row.created_at ? new Date(row.created_at).toLocaleString('id-ID') : '',
-                    'Tipe Transaksi': row.transaction_type,
-                    'Jumlah (Kg)': row.qty_change,
-                    'Referensi': row.detail_label,
-                    'Catatan': row.notes
-                }));
-                const csv = generateCsv(config)(exportData);
-                download(config)(csv);
-            };
-            return (
-                <Button
-                    color="primary"
-                    onClick={handleExportMutation}
-                    startIcon={<FileDownloadIcon />}
-                    variant="contained"
-                    disabled={mutationData.length === 0}
-                >
-                    Ekspor CSV Mutasi
-                </Button>
-            );
+    const historyTable = useMaterialReactTable({
+        columns: historyColumns,
+        data: historyData,
+        state: { isLoading: loadingHistory },
+        initialState: {
+            density: 'compact',
+            pagination: { pageSize: 10, pageIndex: 0 }
+        },
+        paginationDisplayMode: 'pages',
+        renderTopToolbarCustomActions: () => (
+            <Button
+                color="primary"
+                onClick={handleExportHistory}
+                startIcon={<FileDownloadIcon />}
+                variant="contained"
+                sx={{
+                    borderRadius: '20px',
+                    textTransform: 'none',
+                    background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)',
+                    boxShadow: '0 3px 5px 2px rgba(255, 152, 0, .3)',
+                }}
+            >
+                Ekspor CSV
+            </Button>
+        ),
+        muiTablePaperProps: {
+            elevation: 0,
+            sx: {
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                background: mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                overflow: 'hidden',
+            },
+        },
+        muiTableBodyRowProps: () => ({
+            sx: {
+                backgroundColor: 'transparent',
+                '&:hover': {
+                    backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05) !important' : 'rgba(0, 0, 0, 0.02) !important',
+                    transform: 'scale(1.001)',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    zIndex: 1,
+                },
+            },
+        }),
+        muiTableHeadCellProps: {
+            sx: {
+                backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(240, 247, 255, 0.8)',
+                backdropFilter: 'blur(4px)',
+                color: mode === 'dark' ? '#fff' : '#1e293b',
+                fontWeight: 'bold',
+                fontSize: '0.85rem',
+                borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
+            },
+        },
+    });
+
+    // --- Section 2: Stok Per Tanggal ---
+    const [stockByDateData, setStockByDateData] = useState<any[]>([]);
+    const [loadingStockByDate, setLoadingStockByDate] = useState(false);
+    const [selectedStockDate, setSelectedStockDate] = useState<Date | null>(new Date());
+    const [stockDateStr, setStockDateStr] = useState<string>(new Date().toISOString().split('T')[0]);
+
+    const fetchStockByDateData = async () => {
+        setLoadingStockByDate(true);
+        try {
+            const data = await reportService.getStockByDate(companyId, userRole, stockDateStr);
+            setStockByDateData(data);
+        } catch (err) {
+            console.error('[StockReport] Error fetching stock by date:', err);
+        } finally {
+            setLoadingStockByDate(false);
         }
+    };
+
+    useEffect(() => {
+        fetchStockByDateData();
+    }, [companyId, userRole, stockDateStr]);
+
+    const applyStockDate = () => {
+        if (selectedStockDate) {
+            setStockDateStr(selectedStockDate.toISOString().split('T')[0]);
+        }
+    };
+
+    const csvConfigStockByDate = mkConfig({
+        fieldSeparator: ',',
+        decimalSeparator: '.',
+        useKeysAsHeaders: true,
+        filename: 'Stok_Per_Tanggal'
+    });
+
+    const handleExportStockByDate = () => {
+        const exportData = stockByDateData.map(row => ({
+            'Nama Produk': row.product_name || '',
+            'Stok Sistem (Tanggal Terpilih)': row.stock || 0
+        }));
+        const csv = generateCsv(csvConfigStockByDate)(exportData);
+        download(csvConfigStockByDate)(csv);
+    };
+
+    const stockByDateColumns = useMemo(() => [
+        {
+            accessorKey: 'product_name',
+            header: 'Nama Produk'
+        },
+        {
+            accessorKey: 'stock',
+            header: 'Stok Sistem (Tanggal Terpilih)',
+            Cell: ({ cell }: any) => (
+                <strong>{new Intl.NumberFormat('id-ID').format(cell.getValue() || 0)}</strong>
+            )
+        }
+    ], []);
+
+    const stockByDateTable = useMaterialReactTable({
+        columns: stockByDateColumns,
+        data: stockByDateData,
+        state: { isLoading: loadingStockByDate },
+        initialState: {
+            density: 'compact',
+            pagination: { pageSize: 10, pageIndex: 0 }
+        },
+        paginationDisplayMode: 'pages',
+        renderTopToolbarCustomActions: () => (
+            <Button
+                color="primary"
+                onClick={handleExportStockByDate}
+                startIcon={<FileDownloadIcon />}
+                variant="contained"
+                sx={{
+                    borderRadius: '20px',
+                    textTransform: 'none',
+                    background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)',
+                    boxShadow: '0 3px 5px 2px rgba(255, 152, 0, .3)',
+                }}
+            >
+                Ekspor CSV
+            </Button>
+        ),
+        muiTablePaperProps: {
+            elevation: 0,
+            sx: {
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                background: mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                overflow: 'hidden',
+            },
+        },
+        muiTableBodyRowProps: () => ({
+            sx: {
+                backgroundColor: 'transparent',
+                '&:hover': {
+                    backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05) !important' : 'rgba(0, 0, 0, 0.02) !important',
+                    transform: 'scale(1.001)',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    zIndex: 1,
+                },
+            },
+        }),
+        muiTableHeadCellProps: {
+            sx: {
+                backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(240, 247, 255, 0.8)',
+                backdropFilter: 'blur(4px)',
+                color: mode === 'dark' ? '#fff' : '#1e293b',
+                fontWeight: 'bold',
+                fontSize: '0.85rem',
+                borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
+            },
+        },
     });
 
     return (
         <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
-            <Typography variant="h4" fontWeight="bold" sx={{ mb: 3 }}>
-                Laporan Stok (INTERNAL RAW)
+            {/* Section 1 */}
+            <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold', background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Riwayat Pergerakan Stok
             </Typography>
 
-            <Paper sx={{ p: 2, mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Typography variant="subtitle2" sx={{ mr: 2 }}>Filter Tanggal:</Typography>
-                <Chip label="Semua" onClick={() => handleChipFilter('All')} color={activeChip === 'All' ? 'primary' : 'default'} />
-                <Chip label="Minggu Ini" onClick={() => handleChipFilter('Minggu Ini')} color={activeChip === 'Minggu Ini' ? 'primary' : 'default'} />
-                <Chip label="Bulan Ini" onClick={() => handleChipFilter('Bulan Ini')} color={activeChip === 'Bulan Ini' ? 'primary' : 'default'} />
-                <Chip label="Tahun Ini" onClick={() => handleChipFilter('Tahun Ini')} color={activeChip === 'Tahun Ini' ? 'primary' : 'default'} />
-                
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={showOnlyNonZeroStock}
-                            onChange={(e) => setShowOnlyNonZeroStock(e.target.checked)}
-                            color="primary"
-                        />
-                    }
-                    label="Tampilkan Stok ≠ 0 saja"
-                    sx={{ ml: 2 }}
-                />
-
-                <Box sx={{ flexGrow: 1 }} />
-                
+            <Paper 
+                elevation={0}
+                sx={{ 
+                    p: 2, 
+                    mb: 3, 
+                    display: 'flex', 
+                    gap: 2, 
+                    alignItems: 'center', 
+                    flexWrap: 'wrap',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    background: mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.6)',
+                    boxShadow: '0 4px 20px 0 rgba(31, 38, 135, 0.08)'
+                }}
+            >
+                <Typography variant="subtitle2" sx={{ mr: 1 }}>Filter Tanggal:</Typography>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                     <DatePicker 
-                        label="Start Date" 
+                        label="Tanggal Mulai" 
                         value={startDate} 
                         onChange={(newValue) => setStartDate(newValue)}
                         slotProps={{ textField: { size: 'small' } }}
                     />
                     <DatePicker 
-                        label="End Date" 
+                        label="Tanggal Akhir" 
                         value={endDate} 
                         onChange={(newValue) => setEndDate(newValue)}
                         slotProps={{ textField: { size: 'small' } }}
                     />
                 </LocalizationProvider>
-                <Button variant="outlined" onClick={applyCustomDate}>Tampilkan</Button>
+                <Button variant="outlined" onClick={applyHistoryDate} sx={{ borderRadius: '20px', textTransform: 'none' }}>Tampilkan</Button>
             </Paper>
 
-            <Grid container spacing={3}>
-                <Grid size={{ xs: 12 }}>
-                    <MaterialReactTable table={table} />
-                </Grid>
-            </Grid>
+            <Box sx={{ mb: 6 }}>
+                <MaterialReactTable table={historyTable} />
+            </Box>
 
-            {/* Mutasi Stock Section */}
-            <Paper sx={{ p: 3, mt: 4, borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)' }}>
-                <Typography variant="h5" fontWeight="bold" sx={{ mb: 3, background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    Mutasi Stock
-                </Typography>
-                <Grid container spacing={3} sx={{ mb: 3 }}>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField
-                            select
-                            label="Pilih Produk Internal (Raw)"
-                            fullWidth
-                            size="small"
-                            value={selectedProductId}
-                            onChange={(e) => setSelectedProductId(e.target.value)}
-                        >
-                            {products.map(p => (
-                                <MenuItem key={p.id} value={p.id}>
-                                    {p.name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    </Grid>
-                </Grid>
-
-                {selectedProductId ? (
-                    <MaterialReactTable table={mutationTable} />
-                ) : (
-                    <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
-                        <Typography variant="body1">Silakan pilih produk terlebih dahulu untuk melihat mutasi stok.</Typography>
-                    </Box>
-                )}
+            {/* Section 2 */}
+            <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold', background: 'linear-gradient(45deg, #6366F1 30%, #A855F7 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Stok per Tanggal (Stok Sistem)
+            </Typography>
+            
+            <Paper 
+                elevation={0}
+                sx={{ 
+                    p: 2, 
+                    mb: 3, 
+                    display: 'flex', 
+                    gap: 2, 
+                    alignItems: 'center', 
+                    flexWrap: 'wrap',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    background: mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.6)',
+                    boxShadow: '0 4px 20px 0 rgba(31, 38, 135, 0.08)'
+                }}
+            >
+                <Typography variant="subtitle2" sx={{ mr: 1 }}>Pilih Tanggal Stok:</Typography>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DatePicker 
+                        label="Pilih Tanggal Stok" 
+                        value={selectedStockDate} 
+                        onChange={(newValue) => setSelectedStockDate(newValue)}
+                        slotProps={{ textField: { size: 'small' } }}
+                    />
+                </LocalizationProvider>
+                <Button variant="outlined" onClick={applyStockDate} sx={{ borderRadius: '20px', textTransform: 'none', color: '#6366F1', borderColor: '#6366F1' }}>Tampilkan</Button>
             </Paper>
+
+            <Box>
+                <MaterialReactTable table={stockByDateTable} />
+            </Box>
+
         </Container>
     );
 };

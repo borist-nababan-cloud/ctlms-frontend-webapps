@@ -25,6 +25,7 @@ import { supabase } from '../../lib/supabaseClient';
 import type { SalesOrderDetailed, DeliveryOrder, MasterCompany } from '../../types/supabase';
 import SuratJalanPrintType1 from './SuratJalanPrintType1';
 import SuratJalanPrintType2 from './SuratJalanPrintType2';
+import SuratJalanPrintType3 from './SuratJalanPrintType3';
 import StockpileDeliveryForm from './StockpileDeliveryForm';
 import { useAuth } from '../../context/AuthContext';
 
@@ -167,7 +168,7 @@ const StockpileDelivery: React.FC = () => {
         loadDeliveries();
     }, [loggedInProfile?.company_id]);
 
-    const handleFormSuccess = async (_savedHeader: any, _savedItems: any[]) => {
+    const handleFormSuccess = async () => {
         setSuccessMsg(editingDO ? 'Surat Jalan berhasil diperbarui!' : 'Surat Jalan berhasil disimpan!');
         loadDeliveries();
     };
@@ -371,6 +372,14 @@ const StockpileDelivery: React.FC = () => {
             <Box sx={{ display: 'none', displayPrint: 'block' }}>
                 {company?.type_sj === 1 ? (
                     <SuratJalanPrintType1
+                        ref={printRef}
+                        deliveryOrder={printDO}
+                        salesOrder={printSO}
+                        company={company}
+                        customProductName={printCustomProductName}
+                    />
+                ) : company?.type_sj === 3 ? (
+                    <SuratJalanPrintType3
                         ref={printRef}
                         deliveryOrder={printDO}
                         salesOrder={printSO}

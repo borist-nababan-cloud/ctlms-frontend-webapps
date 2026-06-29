@@ -157,7 +157,19 @@ const InventoryDashboard = () => {
         },
         { 
             accessorKey: 'supplier_name', 
-            header: 'Nama Supplier', 
+            header: 'Supplier', 
+            size: 150,
+            Cell: ({ cell }) => cell.getValue<string>() || '-'
+        },
+        { 
+            accessorKey: 'customer_name', 
+            header: 'Customer', 
+            size: 150,
+            Cell: ({ cell }) => cell.getValue<string>() || '-'
+        },
+        { 
+            accessorKey: 'sj_number', 
+            header: 'No. SJ', 
             size: 150,
             Cell: ({ cell }) => cell.getValue<string>() || '-'
         },
@@ -233,7 +245,9 @@ const InventoryDashboard = () => {
             'Nama Produk': row.product_name || '-',
             'Perubahan Qty (Kg)': row.qty_change || 0,
             'Nama Vessel': row.vessel_name || '-',
-            'Nama Supplier': row.supplier_name || '-',
+            'Supplier': row.supplier_name || '-',
+            'Customer': row.customer_name || '-',
+            'No. SJ': row.sj_number || '-',
             'Catatan': row.notes || '-'
         }));
         download(csvConfigHistory)(generateCsv(csvConfigHistory)(exportData));

@@ -256,34 +256,21 @@ export const reportService = {
         return data || [];
     },
 
-    // 6. TCP Input
+    // 6. TCP Input / Laporan TCP
     async getTcp(companyId: string, role: number, dates: DateFilter) {
         
         let query = supabase
-            .from('tcp_input')
-            .select(`
-                id,
-                tcp_value,
-                total_in,
-                total_out,
-                actual_stock,
-                current_stock_snapshot,
-                created_at,
-                shipments:shipments!shipment_id(invoice_no, vessel_name, quantity),
-                master_products(name)
-            `)
+            .from('view_tcp_report')
+            .select('*')
             .order('created_at', { ascending: false });
 
-        if (role !== 8 && companyId) {
-            
+        if (companyId && role !== 8 && role !== 1) {
             query = query.eq('company_id', companyId);
         }
         if (dates.startDate) {
-            
             query = query.gte('created_at', `${dates.startDate}T00:00:00Z`);
         }
         if (dates.endDate) {
-            
             query = query.lte('created_at', `${dates.endDate}T23:59:59Z`);
         }
 
@@ -297,32 +284,24 @@ export const reportService = {
     },
 
     // 7. Inventory Adjustments
-    async getAdjustments(companyId: string, role: number, dates: DateFilter) {
+    async getAdjustments(companyId: string, role: number, dates: DateFilter, status?: string) {
         
         let query = supabase
-            .from('inventory_adjustments')
-            .select(`
-                id,
-                actual_stock,
-                current_stock_snapshot,
-                status,
-                notes,
-                created_at,
-                master_products(name)
-            `)
+            .from('view_adjustment_report')
+            .select('*')
             .order('created_at', { ascending: false });
 
-        if (role !== 8 && companyId) {
-            
+        if (companyId && role !== 8 && role !== 1) {
             query = query.eq('company_id', companyId);
         }
         if (dates.startDate) {
-            
             query = query.gte('created_at', `${dates.startDate}T00:00:00Z`);
         }
         if (dates.endDate) {
-            
             query = query.lte('created_at', `${dates.endDate}T23:59:59Z`);
+        }
+        if (status && status !== 'ALL') {
+            query = query.eq('status', status);
         }
 
         const { data, error } = await query;
@@ -417,5 +396,80 @@ export const reportService = {
                 detail_label: detailLabel
             };
         });
+    },
+
+    // New Method for Section 1: Riwayat Pergerakan Stok
+    async getStockMovementHistory(companyId: string, role: number, dates: DateFilter) {
+        let query = supabase
+            .from('view_ledger_details')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (companyId && role !== 8 && role !== 1) {
+            query = query.eq('company_id', companyId);
+        }
+
+        if (dates.startDate) {
+            query = query.gte('created_at', `${dates.startDate}T00:00:00Z`);
+        }
+        if (dates.endDate) {
+            query = query.lte('created_at', `${dates.endDate}T23:59:59Z`);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            console.error('[reportService.getStockMovementHistory] Supabase error:', error);
+            throw error;
+        }
+        return data || [];
+    },
+
+    // New Method for Section 2: Stok Per Tanggal
+    async getStockByDate(companyId: string, role: number, selectedDate: string) {
+        const { data: rawProducts, error: prodError } = await supabase
+            .from('master_products')
+            .select('id, name, sku_code')
+            .eq('type', 'INTERNAL_RAW');
+
+        if (prodError) throw prodError;
+
+        const rawProductIds = rawProducts?.map(p => p.id) || [];
+        if (rawProductIds.length === 0) return [];
+
+        let query = supabase
+            .from('inventory_ledger')
+            .select('product_id, qty_change')
+            .in('product_id', rawProductIds);
+
+        if (companyId && role !== 8 && role !== 1) {
+            query = query.eq('company_id', companyId);
+        }
+
+        if (selectedDate) {
+            query = query.lte('created_at', `${selectedDate}T23:59:59Z`);
+        }
+
+        const { data: ledgerData, error: ledgerError } = await query;
+
+        if (ledgerError) {
+            console.error('[reportService.getStockByDate] Ledger fetch error:', ledgerError);
+            throw ledgerError;
+        }
+
+        const stockMap: Record<string, number> = {};
+        (ledgerData || []).forEach(item => {
+            const pId = item.product_id;
+            const qty = Number(item.qty_change) || 0;
+            stockMap[pId] = (stockMap[pId] || 0) + qty;
+        });
+
+        const formattedData = rawProducts.map(p => ({
+            product_id: p.id,
+            sku_code: p.sku_code,
+            product_name: p.name,
+            stock: stockMap[p.id] || 0
+        })).sort((a, b) => a.product_name.localeCompare(b.product_name));
+
+        return formattedData;
     }
 };
