@@ -29,7 +29,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useColorMode } from '../../context/ThemeContext';
 import { containsHtmlOrScript } from '../../lib/sanitizer';
-import { inventoryAdjustmentService, type InventoryAdjustmentRecord } from '../../lib/inventoryAdjustmentService';
+import { inventoryAdjustmentService } from '../../lib/inventoryAdjustmentService';
 import { deliveryService } from '../../lib/deliveryService';
 
 const InventoryAdjustment = () => {
