@@ -83,37 +83,16 @@ export const inventoryAdjustmentService = {
     },
 
     // Get pending adjustments (ON_REQUEST status)
-    async getPendingAdjustments(): Promise<InventoryAdjustmentRecord[]> {
+    async getPendingAdjustments(): Promise<any[]> {
         const { data, error } = await supabase
-            .from('inventory_adjustments')
-            .select(`
-                *,
-                master_products (
-                    name
-                ),
-                user_profiles!created_by (
-                    real_name,
-                    email
-                )
-            `)
+            .from('view_adjustment_report')
+            .select('*')
             .eq('status', 'ON_REQUEST')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
         
-        // Map product and requester info inline
-        const mapped = (data || []).map((item: any) => {
-            const rawProfile = item.user_profiles;
-            const profile = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile;
-            return {
-                ...item,
-                created_at: item.created_at, // Explicitly assign to prevent prototype/getter stripping
-                product_name: item.master_products?.name || '-',
-                requester_name: profile?.real_name || profile?.email || '-',
-                requester_email: profile?.email || '-'
-            };
-        });
-        return mapped;
+        return data || [];
     },
 
     // Approve inventory adjustment (Direct update status = 'APPROVED')

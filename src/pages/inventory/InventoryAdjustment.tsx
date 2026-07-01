@@ -45,7 +45,7 @@ const InventoryAdjustment = () => {
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     // Superuser Approval View States
-    const [adjustments, setAdjustments] = useState<InventoryAdjustmentRecord[]>([]);
+    const [adjustments, setAdjustments] = useState<any[]>([]);
 
     // Requester Form View States
     const [products, setProducts] = useState<any[]>([]);
@@ -241,89 +241,121 @@ const InventoryAdjustment = () => {
     };
 
     // Superuser approval table columns
-    const columns = useMemo<MRT_ColumnDef<InventoryAdjustmentRecord>[]>(() => [
-        {
-            accessorKey: 'product_name',
-            header: 'Nama Produk',
-            size: 200,
-            Cell: ({ cell }) => cell.getValue<string>() || '-',
-        },
-        {
-            accessorKey: 'current_stock_snapshot',
-            header: 'Stok Sistem (Kg)',
-            size: 150,
-            Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
-        },
-        {
-            accessorKey: 'actual_stock',
-            header: 'Stok Fisik (Kg)',
-            size: 150,
-            Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
-        },
-        {
-            id: 'calculated_selisih',
-            header: 'Selisih (Kg)',
-            size: 150,
-            Cell: ({ row }) => {
-                const system = row.original.current_stock_snapshot || 0;
-                const actual = row.original.actual_stock || 0;
-                const calculated = actual - system;
+    const columns = useMemo<MRT_ColumnDef<any>[]>(() => {
+        const cols: MRT_ColumnDef<any>[] = [
+            {
+                accessorKey: 'product_name',
+                header: 'Nama Produk',
+                size: 200,
+                Cell: ({ cell }) => cell.getValue<string>() || '-',
+            },
+            {
+                accessorKey: 'current_stock_snapshot',
+                header: 'Stok Sistem (Kg)',
+                size: 150,
+                Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
+            },
+            {
+                accessorKey: 'actual_stock',
+                header: 'Stok Fisik (Kg)',
+                size: 150,
+                Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
+            },
+            {
+                accessorKey: 'selisih',
+                header: 'Selisih (Kg)',
+                size: 150,
+                Cell: ({ cell }) => {
+                    const calculated = cell.getValue<number>() || 0;
 
-                const color = calculated > 0 ? '#4caf50' : calculated < 0 ? '#f44336' : 'inherit';
-                const prefix = calculated > 0 ? '+' : '';
-                return (
-                    <span style={{ color, fontWeight: 'bold' }}>
-                        {prefix}{new Intl.NumberFormat('id-ID').format(calculated)}
-                    </span>
-                );
-            }
-        },
-        {
-            accessorKey: 'notes',
-            header: 'Catatan',
-            size: 250,
-            Cell: ({ cell }) => cell.getValue<string>() || '-',
-        },
-        {
-            accessorKey: 'status',
-            header: 'Status',
-            size: 130,
-            Cell: () => (
-                <Chip
-                    label="ON_REQUEST"
-                    color="warning"
-                    size="small"
-                    sx={{ fontWeight: 'bold' }}
-                />
-            ),
-        },
-        {
-            accessorKey: 'requester_name',
-            header: 'Dibuat Oleh',
-            size: 180,
-            Cell: ({ row }) => row.original.requester_name || '-',
-        },
-        {
-            accessorKey: 'created_at',
-            header: 'Dibuat Pada',
-            size: 180,
-            Cell: ({ row }) => {
-                const dateStr = row.original.created_at;
-                if (!dateStr) return '-';
-                try {
-                    return new Date(dateStr).toLocaleString('id-ID', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                } catch {
-                    return dateStr;
+                    const color = calculated > 0 ? '#4caf50' : calculated < 0 ? '#f44336' : 'inherit';
+                    const prefix = calculated > 0 ? '+' : '';
+                    return (
+                        <span style={{ color, fontWeight: 'bold' }}>
+                            {prefix}{new Intl.NumberFormat('id-ID').format(calculated)}
+                        </span>
+                    );
                 }
             }
+        ];
+
+        if (isSuperuser) {
+            cols.push(
+                {
+                    accessorKey: 'invoice_qty',
+                    header: 'Invoice Qty',
+                    size: 150,
+                    Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
+                },
+                {
+                    accessorKey: 'vessel_name',
+                    header: 'Nama Vessel',
+                    size: 180,
+                    Cell: ({ cell }) => cell.getValue<string>() || '-',
+                },
+                {
+                    accessorKey: 'total_qty_loosing',
+                    header: 'Total Qty Loosing',
+                    size: 180,
+                    Cell: ({ cell }) => (
+                        <span style={{ color: '#2196f3', fontWeight: 'bold' }}>
+                            {new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0)}
+                        </span>
+                    ),
+                }
+            );
         }
-    ], []);
+
+        cols.push(
+            {
+                accessorKey: 'notes',
+                header: 'Catatan',
+                size: 250,
+                Cell: ({ cell }) => cell.getValue<string>() || '-',
+            },
+            {
+                accessorKey: 'status',
+                header: 'Status',
+                size: 130,
+                Cell: () => (
+                    <Chip
+                        label="ON_REQUEST"
+                        color="warning"
+                        size="small"
+                        sx={{ fontWeight: 'bold' }}
+                    />
+                ),
+            },
+            {
+                accessorKey: 'requester_name',
+                header: 'Dibuat Oleh',
+                size: 180,
+                Cell: ({ row }) => row.original.requester_name || '-',
+            },
+            {
+                accessorKey: 'created_at',
+                header: 'Dibuat Pada',
+                size: 180,
+                Cell: ({ row }) => {
+                    const dateStr = row.original.created_at;
+                    if (!dateStr) return '-';
+                    try {
+                        return new Date(dateStr).toLocaleString('id-ID', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    } catch {
+                        return dateStr;
+                    }
+                }
+            }
+        );
+
+        return cols;
+    }, [isSuperuser]);
 
     const table = useMaterialReactTable({
         columns,

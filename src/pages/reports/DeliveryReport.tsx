@@ -81,13 +81,15 @@ const DeliveryReport = () => {
             'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : '',
             'No. SO': row.order_no || '',
             'No. SJ': row.sj_number || '',
-            'Type': row.delivery_type || '',
+            'Tipe Pengiriman': row.transaction_type || '',
             'Customer': row.customer_name || '',
             'Produk Publish': row.published_product || '',
             'Produk Internal': row.internal_product_name || '',
             'Qty (Kg)': row.qty_kg || 0,
             'Blending': row.type_blending || '',
-            'Tipe Produksi': row.type_production || ''
+            'Tipe Produksi': row.type_production || '',
+            'Transporter': row.transporter_name || '-',
+            'No. Polisi': row.truck_plate || '-'
         }));
         const csv = generateCsv(csvConfig)(exportData);
         download(csvConfig)(csv);
@@ -112,6 +114,11 @@ const DeliveryReport = () => {
             header: 'No. SJ',
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
+        {
+            accessorKey: 'transaction_type',
+            header: 'Tipe Pengiriman',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
         { 
             accessorKey: 'customer_name', 
             header: 'Customer',
@@ -129,7 +136,7 @@ const DeliveryReport = () => {
         },
         { 
             accessorKey: 'qty_kg', 
-            header: 'Total Qty (Kg)', 
+            header: 'Qty (Kg)', 
             aggregationFn: 'sum',
             AggregatedCell: ({ cell }: any) => (
                 <strong style={{ color: '#4caf50' }}>
@@ -146,6 +153,16 @@ const DeliveryReport = () => {
         { 
             accessorKey: 'type_production', 
             header: 'Tipe Produksi',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'transporter_name',
+            header: 'Transporter',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'truck_plate',
+            header: 'No. Polisi',
             Cell: ({ cell }: any) => cell.getValue() || '-'
         }
     ], []);
@@ -172,8 +189,8 @@ const DeliveryReport = () => {
                 sx={{
                     borderRadius: '20px',
                     textTransform: 'none',
-                    background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)',
-                    boxShadow: '0 3px 5px 2px rgba(255, 152, 0, .3)',
+                    background: 'linear-gradient(45deg, #3f51b5 30%, #9c27b0 90%)',
+                    boxShadow: '0 3px 5px 2px rgba(63, 81, 181, .3)',
                 }}
             >
                 Ekspor CSV
@@ -224,7 +241,7 @@ const DeliveryReport = () => {
     return (
         <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #FF9800 30%, #FF5722 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                <Typography variant="h4" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #3f51b5 30%, #9c27b0 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                     Laporan Pengiriman
                 </Typography>
             </Box>
