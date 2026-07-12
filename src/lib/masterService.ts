@@ -44,7 +44,7 @@ export const masterService = {
     },
 
     // Products
-    async getProducts(companyId?: string | null, role?: number | null) {
+    async getProducts() {
         const query = supabase
             .from('master_products')
             .select('*, company:master_companies(name)')

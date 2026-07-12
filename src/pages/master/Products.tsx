@@ -49,7 +49,7 @@ const Products = () => {
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const data = await masterService.getProducts(profile?.company_id, userRole);
+            const data = await masterService.getProducts();
             setProducts(data);
         } catch (err: any) {
             console.error('Error loading products:', err);
