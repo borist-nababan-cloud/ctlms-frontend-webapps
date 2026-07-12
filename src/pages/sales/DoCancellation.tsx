@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Button,
@@ -75,7 +75,7 @@ const DoCancellation = () => {
         
         try {
             setActionLoading(true);
-            const data = await doCancellationService.updateRequestStatus(selectedRequest.id, confirmAction, profile.uuid);
+            await doCancellationService.updateRequestStatus(selectedRequest.id, confirmAction, profile.uuid);
             
             if (confirmAction === 'APPROVED') {
                 setSuccessMsg('Data berhasil diupdate');
