@@ -14,6 +14,7 @@ export const en = {
             sales_master: 'Master Sales',
             sales_direct_barge: 'Loosing Delivery',
             sales_stockpile: 'Stockpile Delivery',
+            sales_cancellation: 'DO Cancellation Request',
             logistics: 'Logistics',
             tally_input: 'Tally Input',
             monitoring: 'Monitoring',

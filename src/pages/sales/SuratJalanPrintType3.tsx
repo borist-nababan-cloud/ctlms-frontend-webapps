@@ -29,6 +29,7 @@ export const SuratJalanPrintType3 = React.forwardRef<HTMLDivElement, SuratJalanP
         const customerName = deliveryOrder.customer_name || salesOrder?.customer_name || '-';
         const customerAddress = deliveryOrder.customer_address || salesOrder?.customer_address || '-';
         const transporterName = deliveryOrder.transporter_name || '-';
+        const poNumber = salesOrder?.po_number || '-';
         const truckPlate = deliveryOrder.truck_plate || '-';
         const sjNumber = deliveryOrder.sj_number || '----------';
         const productName = customProductName || deliveryOrder.published_product_name || salesOrder?.product_name || '-';
@@ -121,6 +122,11 @@ export const SuratJalanPrintType3 = React.forwardRef<HTMLDivElement, SuratJalanP
                                     <td style={{ width: '100px', verticalAlign: 'top', padding: '2px 0' }}>Tanggal</td>
                                     <td style={{ width: '15px', verticalAlign: 'top', padding: '2px 0' }}>:</td>
                                     <td style={{ verticalAlign: 'top', padding: '2px 0' }}>{formattedDate}</td>
+                                </tr>
+                                <tr>
+                                    <td style={{ verticalAlign: 'top', padding: '2px 0' }}>No. PO</td>
+                                    <td style={{ verticalAlign: 'top', padding: '2px 0' }}>:</td>
+                                    <td style={{ verticalAlign: 'top', padding: '2px 0' }}>{poNumber}</td>
                                 </tr>
                                 <tr>
                                     <td style={{ verticalAlign: 'top', padding: '2px 0' }}>Kepada Yth</td>

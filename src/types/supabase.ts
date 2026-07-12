@@ -154,6 +154,7 @@ export interface SalesOrder {
     id: string; // uuid
     created_at?: string;
     order_no: string;
+    po_number?: string | null;
     customer_id: string; // uuid -> master_partners
     product_id: string; // uuid -> master_products
     product_name?: string | null;
@@ -221,6 +222,39 @@ export interface DeliveryOrderItem {
     produk_net?: number | null;
 }
 
+export type DoCancellationRequestType = 'Ganti Kendaraan' | 'Ganti Sales Order' | 'Pengembalian Stok (Per Item)' | 'Pengembalian Stok (Total)';
+
+export interface DoCancellationRequest {
+    id: string; // uuid
+    request_no?: string;
+    company_id: string;
+    do_id: string; // reference to delivery_orders
+    request_type: DoCancellationRequestType;
+    status: 'ON_REQUEST' | 'APPROVED' | 'REJECTED';
+    truck_plate?: string | null;
+    transporter_id?: string | null;
+    sales_order_id?: string | null;
+    return_product_id?: string | null; // internal_product_id
+    return_qty?: number | null;
+    reason?: string | null;
+    created_by?: string; // uuid of user
+    approved_by?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface DoCancellationRequestDetailed extends DoCancellationRequest {
+    delivery_order_no?: string;
+    po_number?: string | null;
+    new_so_number?: string;
+    new_po_number?: string;
+    requester_name?: string;
+    approver_name?: string;
+    new_transporter_name?: string;
+    new_sales_order_no?: string;
+    return_product_name?: string;
+}
+
 export interface Database {
     public: {
         Tables: {
@@ -278,6 +312,11 @@ export interface Database {
                 Row: DeliveryOrderItem;
                 Insert: Omit<DeliveryOrderItem, 'id' | 'created_at'>;
                 Update: Partial<DeliveryOrderItem>;
+            };
+            do_cancellation_requests: {
+                Row: DoCancellationRequest;
+                Insert: Omit<DoCancellationRequest, 'id' | 'created_at'>;
+                Update: Partial<DoCancellationRequest>;
             };
         };
     };

@@ -76,6 +76,7 @@ const SalesReport = () => {
     const handleExportData = () => {
         const exportData = tableData.map(row => ({
             'No. Order': row.order_no || '',
+            'No. PO': row.po_number || '',
             'Produk': row.master_products?.name || '',
             'Customer': row.master_partners?.name || '',
             'Total Qty (Kg)': row.qty_ordered || 0,
@@ -90,6 +91,10 @@ const SalesReport = () => {
         { 
             accessorKey: 'order_no', 
             header: 'No. Order' 
+        },
+        { 
+            accessorKey: 'po_number', 
+            header: 'No. PO' 
         },
         { 
             accessorKey: 'master_products.name', 

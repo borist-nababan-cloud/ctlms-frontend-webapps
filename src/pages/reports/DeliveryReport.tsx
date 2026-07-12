@@ -6,7 +6,9 @@ import {
     Box,
     Typography,
     Paper,
-    Button
+    Button,
+    Tabs,
+    Tab
 } from '@mui/material';
 import { MaterialReactTable, useMaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
 import { useAuth } from '../../context/AuthContext';
@@ -33,12 +35,14 @@ const DeliveryReport = () => {
     
     const [startDate, setStartDate] = useState<Date | null>(new Date());
     const [endDate, setEndDate] = useState<Date | null>(new Date());
+    const [tabValue, setTabValue] = useState(0);
 
     const fetchData = async () => {
         
         setLoading(true);
         try {
-            const data = await reportService.getPengiriman(companyId, userRole, dateFilter);
+            const isCancelled = tabValue === 1;
+            const data = await reportService.getPengiriman(companyId, userRole, dateFilter, isCancelled);
             
             setTableData(data);
         } catch (err) {
@@ -50,7 +54,7 @@ const DeliveryReport = () => {
 
     useEffect(() => {
         fetchData();
-    }, [companyId, userRole, dateFilter]);
+    }, [companyId, userRole, dateFilter, tabValue]);
 
     const applyCustomDate = () => {
         if (startDate && endDate) {
@@ -80,6 +84,7 @@ const DeliveryReport = () => {
         const exportData = tableData.map(row => ({
             'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : '',
             'No. SO': row.order_no || '',
+            'No. PO': row.po_number || '',
             'No. SJ': row.sj_number || '',
             'Tipe Pengiriman': row.transaction_type || '',
             'Customer': row.customer_name || '',
@@ -98,10 +103,17 @@ const DeliveryReport = () => {
     const columns = useMemo<MRT_ColumnDef<any>[]>(() => [
         { 
             accessorKey: 'created_at', 
-            header: 'Tanggal', 
+            header: 'Dibuat Pada', 
             Cell: ({ cell }: any) => {
                 const val = cell.getValue();
-                return val ? new Date(val).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
+                if (!val) return '-';
+                const date = new Date(val);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${day}/${month}/${year} ${hours}:${minutes}`;
             }
         },
         { 
@@ -110,9 +122,25 @@ const DeliveryReport = () => {
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
+            accessorKey: 'po_number', 
+            header: 'No. PO',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        { 
             accessorKey: 'sj_number', 
             header: 'No. SJ',
-            Cell: ({ cell }: any) => cell.getValue() || '-'
+            Cell: ({ cell, row }: any) => (
+                <Box>
+                    <Typography variant="body2" sx={{ textDecoration: row.original.is_cancel ? 'line-through' : 'none' }}>
+                        {cell.getValue() || '-'}
+                    </Typography>
+                    {row.original.is_cancel && (
+                        <Typography variant="caption" color="error" fontWeight="bold">
+                            Status: Dibatalkan
+                        </Typography>
+                    )}
+                </Box>
+            )
         },
         {
             accessorKey: 'transaction_type',
@@ -164,6 +192,11 @@ const DeliveryReport = () => {
             accessorKey: 'truck_plate',
             header: 'No. Polisi',
             Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'created_by_name',
+            header: 'Dibuat Oleh',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         }
     ], []);
 
@@ -173,6 +206,14 @@ const DeliveryReport = () => {
         state: { isLoading: loading },
         enableGrouping: true,
         getRowId: (_, index) => String(index),
+        muiTableBodyRowProps: ({ row }) => ({
+            sx: {
+                backgroundColor: row.original.is_cancel 
+                    ? (mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)') 
+                    : 'inherit',
+                opacity: row.original.is_cancel ? 0.7 : 1,
+            },
+        }),
         initialState: {
             density: 'compact',
             pagination: { pageSize: 10, pageIndex: 0 },
@@ -210,20 +251,7 @@ const DeliveryReport = () => {
                 overflow: 'hidden',
             },
         },
-        muiTableBodyRowProps: () => ({
-            sx: {
-                backgroundColor: 'transparent',
-                '&:hover': {
-                    backgroundColor: mode === 'dark'
-                        ? 'rgba(255, 255, 255, 0.05) !important'
-                        : 'rgba(0, 0, 0, 0.02) !important',
-                    transform: 'scale(1.001)',
-                    transition: 'all 0.2s',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                    zIndex: 1,
-                },
-            },
-        }),
+        
         muiTableHeadCellProps: {
             sx: {
                 backgroundColor: mode === 'dark'
@@ -282,6 +310,15 @@ const DeliveryReport = () => {
                 <Button variant="outlined" onClick={applyCustomDate} sx={{ borderRadius: '20px', textTransform: 'none' }}>Tampilkan</Button>
                 <Button variant="text" color="secondary" onClick={handleReset} sx={{ borderRadius: '20px', textTransform: 'none' }}>Reset</Button>
             </Paper>
+
+            <Tabs 
+                value={tabValue} 
+                onChange={(_, newValue) => setTabValue(newValue)} 
+                sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+            >
+                <Tab label="Semua Dokumen" />
+                <Tab label="Dokumen Dibatalkan" />
+            </Tabs>
 
             <MaterialReactTable table={table} />
         </Container>

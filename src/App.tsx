@@ -21,6 +21,7 @@ import TcpInput from './pages/inventory/TcpInput';
 import SalesOrderList from './pages/sales/SalesOrderList';
 import DirectDelivery from './pages/sales/DirectDelivery';
 import StockpileDelivery from './pages/sales/StockpileDelivery';
+import DoCancellation from './pages/sales/DoCancellation';
 import StockReport from './pages/reports/StockReport';
 import PurchaseReport from './pages/reports/PurchaseReport';
 import SalesReport from './pages/reports/SalesReport';
@@ -59,6 +60,7 @@ function App() {
                 <Route path="/sales/orders" element={<SalesOrderList />} />
                 <Route path="/sales/direct-barge" element={<DirectDelivery />} />
                 <Route path="/sales/stockpile" element={<StockpileDelivery />} />
+                <Route path="/sales/cancellations" element={<DoCancellation />} />
                 <Route path="/reports/stock" element={<StockReport />} />
                 <Route path="/reports/purchasing" element={<PurchaseReport />} />
                 <Route path="/reports/sales" element={<SalesReport />} />

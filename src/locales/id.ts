@@ -14,6 +14,7 @@ export const id = {
             sales_master: 'Master Penjualan',
             sales_direct_barge: 'Pengiriman Loosing',
             sales_stockpile: 'Pengiriman Stock Pile',
+            sales_cancellation: 'Permintaan Perubahan DO',
             logistics: 'Logistik',
             tally_input: 'Input Masuk Barang',
             monitoring: 'Pemantauan',

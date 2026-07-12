@@ -958,7 +958,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         >
             <Box component="form" onSubmit={handleSubmit(onSubmit)}>
                 <DialogTitle sx={{ fontWeight: 'bold', borderBottom: '1px solid', borderColor: 'divider' }}>
-                    {deliveryOrder ? 'Edit Surat Jalan' : 'Buat Surat Jalan Baru'} (Pengiriman Stockpile)
+                    {deliveryOrder ? 'Ubah Surat Jalan' : 'Buat Surat Jalan Baru'} (Pengiriman Stockpile)
                 </DialogTitle>
                 <DialogContent sx={{ mt: 2, pb: 1, maxHeight: '70vh', overflowY: 'auto' }}>
                     {loadingData || loadingItems ? (

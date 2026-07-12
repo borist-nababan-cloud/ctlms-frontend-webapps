@@ -211,6 +211,28 @@ const DirectDelivery: React.FC = () => {
             header: 'Netto (Kg)',
             size: 120,
             Cell: ({ cell }) => new Intl.NumberFormat('id-ID').format(cell.getValue<number>() || 0),
+        },
+        {
+            accessorKey: 'created_by_name',
+            header: 'Dibuat Oleh',
+            size: 150,
+            Cell: ({ cell }) => cell.getValue<string>() || '-'
+        },
+        {
+            accessorKey: 'created_at',
+            header: 'Dibuat Pada',
+            size: 180,
+            Cell: ({ cell }) => {
+                const val = cell.getValue<string>();
+                if (!val) return '-';
+                const date = new Date(val);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${day}/${month}/${year} ${hours}:${minutes}`;
+            }
         }
     ], []);
 
@@ -227,7 +249,7 @@ const DirectDelivery: React.FC = () => {
         },
         renderRowActions: ({ row }) => (
             <Box sx={{ display: 'flex', gap: 1 }}>
-                <Tooltip title="Edit">
+                <Tooltip title="Ubah">
                     <IconButton onClick={() => handleOpenEditModal(row.original)} size="small" color="primary">
                         <EditIcon fontSize="small" />
                     </IconButton>

@@ -64,6 +64,12 @@ const SalesOrderList = () => {
             size: 150,
         },
         {
+            accessorKey: 'po_number',
+            header: 'No. PO',
+            size: 150,
+            Cell: ({ cell }) => cell.getValue<string>() || '-',
+        },
+        {
             accessorKey: 'company_name',
             header: 'Perusahaan',
             size: 180,

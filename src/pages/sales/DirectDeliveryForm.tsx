@@ -483,7 +483,7 @@ const DirectDeliveryForm: React.FC<DirectDeliveryFormProps> = ({
         >
             <Box component="form" onSubmit={handleSubmit(onSubmit)}>
                 <DialogTitle sx={{ fontWeight: 'bold', borderBottom: '1px solid', borderColor: 'divider' }}>
-                    {deliveryOrder ? 'Edit Surat Jalan' : 'Buat Surat Jalan Baru'} (Pengiriman Langsung)
+                    {deliveryOrder ? 'Ubah Surat Jalan' : 'Buat Surat Jalan Baru'} (Pengiriman Langsung)
                 </DialogTitle>
                 <DialogContent sx={{ mt: 2, pb: 1, maxHeight: '70vh', overflowY: 'auto' }}>
                     {loadingData || loadingItems ? (

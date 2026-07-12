@@ -75,7 +75,8 @@ const MENU_ITEMS: MenuItemInfo[] = [
         children: [
             { key: 'sidebar.sales_master', path: '/sales/orders', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
             { key: 'sidebar.sales_direct_barge', path: '/sales/direct-barge', icon: <DirectionsBoatIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
-            { key: 'sidebar.sales_stockpile', path: '/sales/stockpile', icon: <WarehouseIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] }
+            { key: 'sidebar.sales_stockpile', path: '/sales/stockpile', icon: <WarehouseIcon />, allowedRoles: [1, 2, 3, 4, 5, 6] },
+            { key: 'sidebar.sales_cancellation', path: '/sales/cancellations', icon: <DescriptionIcon />, allowedRoles: [1, 2, 3, 4, 5, 6, 8] }
         ]
     },
     {

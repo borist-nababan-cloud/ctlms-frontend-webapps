@@ -83,13 +83,17 @@ const StockReport = () => {
     const historyColumns = useMemo(() => [
         {
             accessorKey: 'created_at',
-            header: 'Tanggal',
+            header: 'Dibuat Pada',
             Cell: ({ cell }: any) => {
                 const val = cell.getValue();
-                return val ? new Date(val).toLocaleString('id-ID', {
-                    day: '2-digit', month: 'long', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                }) : '-';
+                if (!val) return '-';
+                const date = new Date(val);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${day}/${month}/${year} ${hours}:${minutes}`;
             }
         },
         {
@@ -128,6 +132,11 @@ const StockReport = () => {
         {
             accessorKey: 'supplier_name',
             header: 'Supplier',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'created_by_name',
+            header: 'Dibuat Oleh',
             Cell: ({ cell }: any) => cell.getValue() || '-'
         }
     ], []);

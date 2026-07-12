@@ -404,7 +404,7 @@ const Partners = () => {
 
             {/* Dialog */}
             <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
-                <DialogTitle>{editingId ? 'Edit Mitra' : 'Tambah Mitra Baru'}</DialogTitle>
+                <DialogTitle>{editingId ? 'Ubah Mitra' : 'Tambah Mitra Baru'}</DialogTitle>
                 <DialogContent dividers>
                     <Box sx={{ width: '100%' }}>
                         {dialogError && <Alert severity="error" sx={{ mb: 2 }}>{dialogError}</Alert>}

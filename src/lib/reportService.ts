@@ -229,7 +229,7 @@ export const reportService = {
     },
 
     // 5. Pengiriman (Delivery Orders)
-    async getPengiriman(companyId: string, role: number, dates: DateFilter) {
+    async getPengiriman(companyId: string, role: number, dates: DateFilter, isCancelled: boolean = false) {
         
         let query = supabase
             .from('view_delivery_report')
@@ -239,6 +239,8 @@ export const reportService = {
         if (companyId && role !== 8 && role !== 1) {
             query = query.eq('company_id', companyId);
         }
+
+        query = query.eq('is_cancel', isCancelled);
 
         if (dates.startDate) {
             query = query.gte('created_at', `${dates.startDate}T00:00:00Z`);

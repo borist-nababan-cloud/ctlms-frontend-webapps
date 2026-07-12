@@ -26,6 +26,7 @@ const formatNumberStr = (value: number) => {
 
 interface SalesOrderFormValues {
     order_no: string;
+    po_number: string;
     company_id: string;
     customer_id: string;
     product_id: string;
@@ -57,6 +58,7 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ salesOrderId, onSuccess
     const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<SalesOrderFormValues>({
         defaultValues: {
             order_no: '',
+            po_number: '',
             company_id: '',
             customer_id: '',
             product_id: '',
@@ -94,6 +96,7 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ salesOrderId, onSuccess
                     const order = await salesService.getSalesOrderById(salesOrderId);
                     if (order) {
                         setValue('order_no', order.order_no);
+                        setValue('po_number', order.po_number || '');
                         setValue('company_id', order.company_id || '');
                         setValue('customer_id', order.customer_id);
                         setValue('product_id', order.product_id);
@@ -190,6 +193,7 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ salesOrderId, onSuccess
         // Build save payload
         const savePayload: Partial<SalesOrder> = {
             order_no: data.order_no,
+            po_number: data.po_number || null,
             company_id: data.company_id || null,
             customer_id: data.customer_id,
             product_id: data.product_id,
@@ -277,7 +281,7 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ salesOrderId, onSuccess
             <Box component="form" onSubmit={handleSubmit(onSubmit)}>
                 <Grid container spacing={3}>
                     {/* Order Details */}
-                    <Grid size={12}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <Controller
                             name="order_no"
                             control={control}
@@ -287,6 +291,22 @@ const SalesOrderForm: React.FC<SalesOrderFormProps> = ({ salesOrderId, onSuccess
                                     label="No. Penjualan"
                                     fullWidth
                                     disabled
+                                />
+                            )}
+                        />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <Controller
+                            name="po_number"
+                            control={control}
+                            render={({ field }) => (
+                                <TextField
+                                    {...field}
+                                    label="No. PO"
+                                    fullWidth
+                                    disabled={isFormDisabled}
+                                    placeholder="Masukkan No. PO dari Customer"
                                 />
                             )}
                         />

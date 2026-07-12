@@ -6,7 +6,7 @@ export const masterService = {
     async getPartners(companyId?: string | null, role?: number | null) {
         let query = supabase
             .from('master_partners')
-            .select('*')
+            .select('*, company:master_companies(name)')
             .order('created_at', { ascending: false });
 
         if (role !== 8 && companyId) {
@@ -15,7 +15,10 @@ export const masterService = {
 
         const { data, error } = await query;
         if (error) throw error;
-        return data as MasterPartner[];
+        return (data || []).map((row: any) => ({
+            ...row,
+            company_name: row.company?.name || '-'
+        })) as MasterPartner[];
     },
 
     async createPartner(partner: Omit<MasterPartner, 'id' | 'created_at'>) {
@@ -42,18 +45,22 @@ export const masterService = {
 
     // Products
     async getProducts(companyId?: string | null, role?: number | null) {
-        let query = supabase
+        const query = supabase
             .from('master_products')
-            .select('*')
+            .select('*, company:master_companies(name)')
             .order('created_at', { ascending: false });
 
-        if (role !== 8 && companyId) {
-            query = query.or(`company_id.eq.${companyId},company_id.is.null`);
-        }
+        // Removed company_id filter entirely so all modules can fetch products globally
+        // if (role !== 8 && companyId) {
+        //     query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+        // }
 
         const { data, error } = await query;
         if (error) throw error;
-        return data as MasterProduct[];
+        return (data || []).map((row: any) => ({
+            ...row,
+            company_name: row.company?.name || '-'
+        })) as MasterProduct[];
     },
 
     async createProduct(product: Omit<MasterProduct, 'id' | 'created_at'>) {

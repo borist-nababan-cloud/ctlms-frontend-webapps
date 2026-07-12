@@ -277,7 +277,7 @@ export const deliveryService = {
         return headerData;
     },
 
-    getDeliveryOrdersDetailed: async (deliveryType?: 'DIRECT' | 'STOCKPILE'): Promise<any[]> => {
+    getDeliveryOrdersDetailed: async (deliveryType?: 'DIRECT' | 'STOCKPILE', isCancelled: boolean = false): Promise<any[]> => {
         let query = supabase
             .from('delivery_orders')
             .select(`
@@ -318,6 +318,8 @@ export const deliveryService = {
                     )
                 )
             `);
+
+        query = query.eq('is_cancel', isCancelled);
 
         if (deliveryType) {
             query = query.eq('delivery_type', deliveryType);
