@@ -99,23 +99,17 @@ export const doCancellationService = {
     },
 
     updateRequestStatus: async (id: string, status: 'APPROVED' | 'REJECTED', approvedBy: string): Promise<any> => {
-        if (status === 'APPROVED') {
-            const { data, error } = await supabase.rpc('approve_do_cancellation', { p_request_id: id });
-            if (error) throw error;
-            return data;
-        } else {
-            const { data, error } = await supabase
-                .from('do_cancellation_requests')
-                .update({ 
-                    status, 
-                    approved_by: approvedBy
-                })
-                .eq('id', id)
-                .select()
-                .single();
+        const { data, error } = await supabase
+            .from('do_cancellation_requests')
+            .update({ 
+                status, 
+                approved_by: approvedBy
+            })
+            .eq('id', id)
+            .select()
+            .single();
 
-            if (error) throw error;
-            return data;
-        }
+        if (error) throw error;
+        return data;
     }
 };

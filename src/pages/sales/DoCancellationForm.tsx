@@ -25,6 +25,7 @@ import { doCancellationService } from '../../lib/doCancellationService';
 import { masterService } from '../../lib/masterService';
 import { salesService } from '../../lib/salesService';
 import type { DoCancellationRequestType } from '../../types/supabase';
+import { supabase } from '../../lib/supabaseClient';
 
 interface DoCancellationFormValues {
     do_id: string;
@@ -46,7 +47,6 @@ interface DoCancellationFormProps {
 const REQUEST_TYPES: DoCancellationRequestType[] = [
     'Ganti Kendaraan',
     'Ganti Sales Order',
-    'Pengembalian Stok (Per Item)',
     'Pengembalian Stok (Total)'
 ];
 
@@ -102,17 +102,17 @@ const DoCancellationForm: React.FC<DoCancellationFormProps> = ({ open, onClose, 
             const userRole = profile?.user_role;
             const companyId = profile?.company_id;
 
-            const [dos, trans, sos, prods] = await Promise.all([
+            const [dos, trans, sos, prodsResult] = await Promise.all([
                 doCancellationService.getDeliveryOrders(userRole !== 8 && userRole !== 1 ? companyId : null),
                 masterService.getPartners(null, 8), // Fetch all partners, filter below
                 salesService.getSalesOrders(), // Might need to ensure cross-company
-                masterService.getProducts()
+                supabase.from('master_products').select('*').eq('type', 'INTERNAL_RAW').order('created_at', { ascending: false })
             ]);
 
             setDeliveryOrders(dos || []);
             setTransporters((trans || []).filter(p => p.type === 'TRANSPORTER'));
             setSalesOrders(sos || []);
-            setProducts(prods || []);
+            setProducts(prodsResult.data || []);
         } catch (err: any) {
             console.error('Error fetching dropdown data:', err);
             setError('Gagal memuat data formulir.');
@@ -154,17 +154,18 @@ const DoCancellationForm: React.FC<DoCancellationFormProps> = ({ open, onClose, 
                 do_id: data.do_id,
                 request_type: data.request_type,
                 reason: data.reason,
+                notes: data.reason,
                 created_by: profile.uuid
             };
 
             if (data.request_type === 'Ganti Kendaraan') {
                 payload.truck_plate = data.truck_plate;
                 payload.transporter_id = data.transporter_id || null;
+                payload.sales_order_id = selectedDO?.sales_order_id || null;
             } else if (data.request_type === 'Ganti Sales Order') {
                 payload.sales_order_id = data.sales_order_id;
-            } else if (data.request_type === 'Pengembalian Stok (Per Item)') {
-                payload.return_product_id = data.return_product_id;
-                payload.return_qty = data.return_qty;
+            } else if (data.request_type === 'Pengembalian Stok (Total)') {
+                payload.return_product_id = data.return_product_id || null;
             }
 
             await doCancellationService.createRequest(payload);
@@ -265,7 +266,7 @@ return <li key={key || option.id} {...rest} style={{ display: 'flex', flexDirect
                                                         <Typography variant="body2">{new Date(selectedDO.created_at).toLocaleDateString('id-ID')}</Typography>
                                                     </Grid>
                                                     <Grid size={{ xs: 6, sm: 2 }}>
-                                                        <Typography variant="caption" color="textSecondary">Total Netto</Typography>
+                                                        <Typography variant="caption" color="textSecondary">Total Netto (Kg)</Typography>
                                                         <Typography variant="body2">{selectedDO.net_weight?.toLocaleString('id-ID')} Kg</Typography>
                                                     </Grid>
                                                     <Grid size={{ xs: 6, sm: 2 }}>
@@ -425,50 +426,31 @@ return <li key={key || option.id} {...rest} style={{ display: 'flex', flexDirect
                                         </Grid>
                                     )}
 
-                                    {/* Conditional Fields: Pengembalian Stok (Per Item) */}
-                                    {requestType === 'Pengembalian Stok (Per Item)' && (
-                                        <>
-                                            <Grid size={{ xs: 6, sm: 2 }}>
-                                                <Controller
-                                                    name="return_product_id"
-                                                    control={control}
-                                                    rules={{ required: 'Produk wajib dipilih' }}
-                                                    render={({ field }) => (
-                                                        <TextField
-                                                            {...field}
-                                                            select
-                                                            fullWidth
-                                                            label="Produk yang Dikembalikan"
-                                                            error={!!errors.return_product_id}
-                                                            helperText={errors.return_product_id?.message}
-                                                        >
-                                                            {products.map(p => (
-                                                                <MenuItem key={p.id} value={p.id}>
-                                                                    [{p.company_name || 'Global'}] - {p.name}
-                                                                </MenuItem>
-                                                            ))}
-                                                        </TextField>
-                                                    )}
-                                                />
-                                            </Grid>
-                                            <Grid size={{ xs: 6, sm: 2 }}>
-                                                <Controller
-                                                    name="return_qty"
-                                                    control={control}
-                                                    rules={{ required: 'Qty wajib diisi', min: { value: 1, message: 'Minimal 1' } }}
-                                                    render={({ field }) => (
-                                                        <TextField
-                                                            {...field}
-                                                            type="number"
-                                                            fullWidth
-                                                            label="Qty (Kg)"
-                                                            error={!!errors.return_qty}
-                                                            helperText={errors.return_qty?.message}
-                                                        />
-                                                    )}
-                                                />
-                                            </Grid>
-                                        </>
+                                    {/* Conditional Fields: Pengembalian Stok (Total) */}
+                                    {requestType === 'Pengembalian Stok (Total)' && (
+                                        <Grid size={{ xs: 12 }}>
+                                            <Controller
+                                                name="return_product_id"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <TextField
+                                                        {...field}
+                                                        select
+                                                        fullWidth
+                                                        label="Pilih Produk Tujuan"
+                                                        error={!!errors.return_product_id}
+                                                        helperText={errors.return_product_id?.message}
+                                                    >
+                                                        <MenuItem value=""><em>(Produk Asal DO)</em></MenuItem>
+                                                        {products.map(p => (
+                                                            <MenuItem key={p.id} value={p.id}>
+                                                                [{p.company_name || 'Global'}] - {p.name}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </TextField>
+                                                )}
+                                            />
+                                        </Grid>
                                     )}
                                     
                                     {/* All requests should have an optional/mandatory reason */}

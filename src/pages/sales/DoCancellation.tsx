@@ -24,10 +24,10 @@ import { useColorMode } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { doCancellationService } from '../../lib/doCancellationService';
 import type { DoCancellationRequestDetailed } from '../../types/supabase';
+import { supabase } from '../../lib/supabaseClient';
 import DoCancellationForm from './DoCancellationForm';
 
 const DoCancellation = () => {
-    const {} = useColorMode();
     const { profile } = useAuth();
     const [requests, setRequests] = useState<DoCancellationRequestDetailed[]>([]);
     const [loading, setLoading] = useState(true);
@@ -75,13 +75,23 @@ const DoCancellation = () => {
         
         try {
             setActionLoading(true);
-            await doCancellationService.updateRequestStatus(selectedRequest.id, confirmAction, profile.uuid);
             
             if (confirmAction === 'APPROVED') {
-                setSuccessMsg('Data berhasil diupdate');
+                const { data, error } = await supabase
+                    .rpc('approve_do_cancellation', { p_request_id: selectedRequest.id });
+
+                if (error) {
+                    console.error("Error approval:", error);
+                    setError('Terjadi kesalahan pada sistem saat memproses data.');
+                    setActionLoading(false);
+                    return;
+                    setSuccessMsg('Perubahan telah disetujui dan stok telah disesuaikan');
+                }
             } else {
+                await doCancellationService.updateRequestStatus(selectedRequest.id, confirmAction, profile.uuid);
                 setSuccessMsg('Permintaan berhasil ditolak');
             }
+            
             setConfirmOpen(false);
             fetchRequests(); // refresh data
             
@@ -170,7 +180,7 @@ const DoCancellation = () => {
                 
                 if (status === 'APPROVED') {
                     color = 'success';
-                    label = 'Disetujui';
+                    label = 'Telah Disetujui';
                 } else if (status === 'REJECTED') {
                     color = 'error';
                     label = 'Ditolak';
@@ -209,7 +219,7 @@ const DoCancellation = () => {
             
             return (
                 <Box sx={{ display: 'flex', gap: '8px' }}>
-                    <Tooltip title="Setujui">
+                    <Tooltip title="Setujui Permintaan">
                         <span>
                             <IconButton 
                                 color="success" 
@@ -253,7 +263,7 @@ const DoCancellation = () => {
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                 <Typography variant="h4" fontWeight="bold">
-                    Permintaan Perubahan DO
+                    Permintaan Pembatalan
                 </Typography>
             </Box>
 
@@ -293,7 +303,7 @@ const DoCancellation = () => {
                         variant="contained"
                         disabled={actionLoading}
                     >
-                        {actionLoading ? 'Memproses...' : (confirmAction === 'APPROVED' ? 'Setujui' : 'Tolak')}
+                        {actionLoading ? 'Memproses...' : (confirmAction === 'APPROVED' ? 'Setujui Permintaan' : 'Tolak')}
                     </Button>
                 </DialogActions>
             </Dialog>
