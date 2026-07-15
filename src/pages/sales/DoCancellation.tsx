@@ -20,7 +20,7 @@ import {
     useMaterialReactTable,
     type MRT_ColumnDef,
 } from 'material-react-table';
-import { useColorMode } from '../../context/ThemeContext';
+
 import { useAuth } from '../../context/AuthContext';
 import { doCancellationService } from '../../lib/doCancellationService';
 import type { DoCancellationRequestDetailed } from '../../types/supabase';
@@ -77,7 +77,7 @@ const DoCancellation = () => {
             setActionLoading(true);
             
             if (confirmAction === 'APPROVED') {
-                const { data, error } = await supabase
+                const { error } = await supabase
                     .rpc('approve_do_cancellation', { p_request_id: selectedRequest.id });
 
                 if (error) {
@@ -85,8 +85,9 @@ const DoCancellation = () => {
                     setError('Terjadi kesalahan pada sistem saat memproses data.');
                     setActionLoading(false);
                     return;
-                    setSuccessMsg('Perubahan telah disetujui dan stok telah disesuaikan');
                 }
+                
+                setSuccessMsg('Perubahan telah disetujui dan stok telah disesuaikan');
             } else {
                 await doCancellationService.updateRequestStatus(selectedRequest.id, confirmAction, profile.uuid);
                 setSuccessMsg('Permintaan berhasil ditolak');
