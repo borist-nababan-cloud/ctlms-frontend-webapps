@@ -83,7 +83,8 @@ const TcpReport = () => {
             'Stok Sistem': row.current_stock_snapshot || row.system_stock || 0,
             'Stok Aktual': row.actual_stock || 0,
             'Selisih': getDifference(row),
-            'Dibuat Oleh': row.created_by_name || '-',
+            'Dibuat Oleh': row.user_create || '-',
+            'Disetujui Oleh': row.user_approve || '-',
             'Notes': row.notes || '-'
         }));
         const csv = generateCsv(csvConfig)(exportData);
@@ -169,8 +170,13 @@ const TcpReport = () => {
             }
         },
         {
-            accessorKey: 'created_by_name',
+            accessorKey: 'user_create',
             header: 'Dibuat Oleh',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
+        },
+        {
+            accessorKey: 'user_approve',
+            header: 'Disetujui Oleh',
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         {

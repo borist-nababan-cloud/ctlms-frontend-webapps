@@ -26,10 +26,13 @@ const SalesReport = () => {
 
     const [tableData, setTableData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [dateFilter, setDateFilter] = useState<DateFilter>({});
+    const [dateFilter, setDateFilter] = useState<DateFilter>({
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+    });
     
-    const [startDate, setStartDate] = useState<Date | null>(null);
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [startDate, setStartDate] = useState<Date | null>(new Date());
+    const [endDate, setEndDate] = useState<Date | null>(new Date());
 
     const fetchData = async () => {
         
@@ -81,7 +84,8 @@ const SalesReport = () => {
             'Customer': row.master_partners?.name || '',
             'Total Qty (Kg)': row.qty_ordered || 0,
             'Status': row.status || '',
-            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : ''
+            'Tanggal': row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : '',
+            'Dibuat Oleh': row.created_by_name || '-'
         }));
         const csv = generateCsv(csvConfig)(exportData);
         download(csvConfig)(csv);
@@ -117,6 +121,11 @@ const SalesReport = () => {
             accessorKey: 'created_at', 
             header: 'Tanggal', 
             Cell: ({ cell }: any) => new Date(cell.getValue()).toLocaleDateString('id-ID') 
+        },
+        {
+            accessorKey: 'created_by_name',
+            header: 'Dibuat Oleh',
+            Cell: ({ cell }: any) => cell.getValue() || '-'
         }
     ], []);
 

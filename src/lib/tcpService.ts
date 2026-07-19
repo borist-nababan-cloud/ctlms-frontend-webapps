@@ -136,37 +136,52 @@ export const tcpService = {
         actual_stock: number;
         current_stock_snapshot: number;
         notes: string;
+        selisih?: number;
+        created_by?: string;
     }) {
         // 1. Insert to inventory_adjustments
+        const adjPayload: any = {
+            company_id: payload.company_id,
+            product_id: payload.product_id,
+            current_stock_snapshot: payload.current_stock_snapshot,
+            actual_stock: payload.actual_stock,
+            status: 'ON_REQUEST',
+            notes: payload.notes
+        };
+        if (payload.created_by) {
+            adjPayload.created_by = payload.created_by;
+        }
+
         const { data: adjData, error: adjError } = await supabase
             .from('inventory_adjustments')
-            .insert({
-                company_id: payload.company_id,
-                product_id: payload.product_id,
-                current_stock_snapshot: payload.current_stock_snapshot,
-                actual_stock: payload.actual_stock,
-                status: 'ON_REQUEST',
-                notes: payload.notes
-            })
+            .insert(adjPayload)
             .select('id')
             .single();
         if (adjError) throw adjError;
 
         // 2. Insert to tcp_input
+        const tcpInputPayload: any = {
+            company_id: payload.company_id,
+            shipment_id: payload.shipment_id,
+            product_id: payload.product_id,
+            tcp_value: payload.tcp_value,
+            total_in: payload.total_in,
+            total_out: payload.total_out,
+            actual_stock: payload.actual_stock,
+            current_stock_snapshot: payload.current_stock_snapshot,
+            inventory_adjustment_id: adjData.id,
+            notes: payload.notes
+        };
+        if (payload.selisih !== undefined) {
+            tcpInputPayload.selisih = payload.selisih;
+        }
+        if (payload.created_by) {
+            tcpInputPayload.created_by = payload.created_by;
+        }
+
         const { data: tcpData, error: tcpError } = await supabase
             .from('tcp_input')
-            .insert({
-                company_id: payload.company_id,
-                shipment_id: payload.shipment_id,
-                product_id: payload.product_id,
-                tcp_value: payload.tcp_value,
-                total_in: payload.total_in,
-                total_out: payload.total_out,
-                actual_stock: payload.actual_stock,
-                current_stock_snapshot: payload.current_stock_snapshot,
-                inventory_adjustment_id: adjData.id,
-                notes: payload.notes
-            })
+            .insert(tcpInputPayload)
             .select('id')
             .single();
         if (tcpError) {
@@ -197,35 +212,63 @@ export const tcpService = {
         tcp_value: number;
         actual_stock: number;
         notes: string;
+        selisih?: number;
+        created_by?: string;
     }) {
         // 1. Update inventory_adjustments
+        const adjUpdatePayload: any = {
+            actual_stock: payload.actual_stock,
+            notes: payload.notes
+        };
+        if (payload.created_by) {
+            adjUpdatePayload.created_by = payload.created_by;
+        }
+
         const { error: adjError } = await supabase
             .from('inventory_adjustments')
-            .update({
-                actual_stock: payload.actual_stock,
-                notes: payload.notes
-            })
+            .update(adjUpdatePayload)
             .eq('id', payload.inventory_adjustment_id);
         if (adjError) throw adjError;
 
         // 2. Update tcp_input
+        const tcpUpdatePayload: any = {
+            tcp_value: payload.tcp_value,
+            actual_stock: payload.actual_stock,
+            notes: payload.notes
+        };
+        if (payload.selisih !== undefined) {
+            tcpUpdatePayload.selisih = payload.selisih;
+        }
+        if (payload.created_by) {
+            tcpUpdatePayload.created_by = payload.created_by;
+        }
+
         const { error: tcpError } = await supabase
             .from('tcp_input')
-            .update({
-                tcp_value: payload.tcp_value,
-                actual_stock: payload.actual_stock,
-                notes: payload.notes
-            })
+            .update(tcpUpdatePayload)
             .eq('id', payload.id);
         if (tcpError) throw tcpError;
     },
 
     // Approve TCP Adjustment request (RPC)
-    async approveTcpAdjustment(adjustmentId: string) {
+    async approveTcpAdjustment(adjustmentId: string, approvedBy: string) {
+        // 1. Approve via RPC (usually updates inventory_adjustments)
         const { error } = await supabase.rpc('approve_inventory_adjustment', {
             p_adjustment_id: adjustmentId
         });
         if (error) throw error;
+
+        // 2. Explicitly update tcp_input to capture the approval tracking
+        const { error: tcpUpdateError } = await supabase
+            .from('tcp_input')
+            .update({
+                approved_by: approvedBy,
+                approved_at: new Date().toISOString(),
+                status: 'APPROVED'
+            })
+            .eq('inventory_adjustment_id', adjustmentId);
+            
+        if (tcpUpdateError) throw tcpUpdateError;
     },
 
     // Reject TCP Adjustment request

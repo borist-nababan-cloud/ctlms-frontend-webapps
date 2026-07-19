@@ -163,6 +163,7 @@ export const reportService = {
                 status,
                 asal_batu,
                 jenis_batu,
+                created_by,
                 master_partners(name),
                 master_products(name)
             `)
@@ -186,8 +187,29 @@ export const reportService = {
             console.error('[reportService.getPembelian] Supabase error:', error);
             throw error;
         }
+
+        if (!data || data.length === 0) return [];
+
+        const userIds = Array.from(new Set(data.map(item => item.created_by).filter(Boolean)));
         
-        return data || [];
+        let userMap: Record<string, string> = {};
+        if (userIds.length > 0) {
+            const { data: usersData, error: usersError } = await supabase
+                .from('user_profiles')
+                .select('uuid, real_name')
+                .in('uuid', userIds as string[]);
+
+            if (!usersError && usersData) {
+                usersData.forEach(user => {
+                    userMap[user.uuid] = user.real_name;
+                });
+            }
+        }
+
+        return data.map((row: any) => ({
+            ...row,
+            created_by_name: row.created_by ? (userMap[row.created_by] || null) : null
+        }));
     },
 
     // 4. Penjualan (Sales Orders)
@@ -201,21 +223,19 @@ export const reportService = {
                 qty_ordered,
                 status,
                 created_at,
+                created_by,
                 master_partners(name),
                 master_products(name)
             `)
             .order('created_at', { ascending: false });
 
         if (role !== 8 && companyId) {
-            
             query = query.eq('company_id', companyId);
         }
         if (dates.startDate) {
-            
             query = query.gte('created_at', `${dates.startDate}T00:00:00Z`);
         }
         if (dates.endDate) {
-            
             query = query.lte('created_at', `${dates.endDate}T23:59:59Z`);
         }
 
@@ -224,8 +244,31 @@ export const reportService = {
             console.error('[reportService.getPenjualan] Supabase error:', error);
             throw error;
         }
+
+        if (!data || data.length === 0) return [];
+
+        const userIds = Array.from(new Set(data.map(item => item.created_by).filter(Boolean)));
         
-        return data || [];
+        let userMap: Record<string, string> = {};
+        if (userIds.length > 0) {
+            const { data: usersData, error: usersError } = await supabase
+                .from('user_profiles')
+                .select('uuid, real_name')
+                .in('uuid', userIds as string[]);
+
+            if (!usersError && usersData) {
+                usersData.forEach(user => {
+                    userMap[user.uuid] = user.real_name;
+                });
+            } else if (usersError) {
+                console.error('[reportService.getPenjualan] Users fetch error:', usersError);
+            }
+        }
+
+        return data.map((row: any) => ({
+            ...row,
+            created_by_name: row.created_by ? (userMap[row.created_by] || null) : null
+        }));
     },
 
     // 5. Pengiriman (Delivery Orders)
@@ -255,7 +298,64 @@ export const reportService = {
             throw error;
         }
         
-        return data || [];
+        if (!data || data.length === 0) return [];
+
+        // 1. Map Transporters
+        const transporterIds = Array.from(new Set(data.map((row: any) => row.transporter_id).filter(Boolean)));
+        let transporterMap: Record<string, string> = {};
+        if (transporterIds.length > 0) {
+            const { data: transporters } = await supabase
+                .from('master_partners')
+                .select('id, name')
+                .in('id', transporterIds as string[]);
+            
+            if (transporters) {
+                transporters.forEach(t => transporterMap[t.id] = t.name);
+            }
+        }
+
+        // 2. Fetch DO Items (Qty and Type Production ID)
+        const doIds = data.map((row: any) => row.id);
+        const { data: doItems, error: doItemsError } = await supabase
+            .from('delivery_order_items')
+            .select('do_id, produk_net, type_production_id')
+            .in('do_id', doIds);
+            
+        let qtyMap: Record<string, number> = {};
+        let typeProdIdMap: Record<string, string> = {};
+        
+        if (!doItemsError && doItems) {
+            doItems.forEach(item => {
+                if (item.do_id && item.produk_net != null) {
+                    qtyMap[item.do_id] = (qtyMap[item.do_id] || 0) + Number(item.produk_net);
+                }
+                // If there are multiple items, we'll take the first non-null type_production_id
+                if (item.do_id && item.type_production_id && !typeProdIdMap[item.do_id]) {
+                    typeProdIdMap[item.do_id] = item.type_production_id;
+                }
+            });
+        }
+
+        // 3. Map Type Production Names
+        const typeProdIds = Array.from(new Set(Object.values(typeProdIdMap)));
+        let typeProdNameMap: Record<string, string> = {};
+        if (typeProdIds.length > 0) {
+            const { data: prodTypes } = await supabase
+                .from('master_type_production')
+                .select('id, nama_type')
+                .in('id', typeProdIds as string[]);
+                
+            if (prodTypes) {
+                prodTypes.forEach(pt => typeProdNameMap[pt.id] = pt.nama_type);
+            }
+        }
+
+        return data.map((row: any) => ({
+            ...row,
+            produk_net: qtyMap[row.id] || 0,
+            transporter_name: row.transporter_id ? (transporterMap[row.transporter_id] || '-') : '-',
+            type_production: typeProdIdMap[row.id] ? (typeProdNameMap[typeProdIdMap[row.id]] || '-') : '-'
+        }));
     },
 
     // 6. TCP Input / Laporan TCP

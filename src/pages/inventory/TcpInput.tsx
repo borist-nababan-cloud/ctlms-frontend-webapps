@@ -259,34 +259,41 @@ const TcpInput = () => {
             return;
         }
 
-        // Gunakan kalkulasi dari useMemo untuk target aktual stok
-        const actualStockValue = stokAktual;
+        // Kalkulasi eksplisit untuk sinkronisasi payload ke DB
+        const calculatedSelisih = tcpNum - stokSistemTeoritis;
+        const calculatedActual = stokSistemTeoritis + calculatedSelisih;
 
         setSubmitting(true);
         try {
             if (isEditMode && selectedRecord) {
-                // Edit record
-                await tcpService.updateTcpRecord({
+                const updatePayload = {
                     id: selectedRecord.id,
                     inventory_adjustment_id: selectedRecord.inventory_adjustment_id,
                     tcp_value: tcpNum,
-                    actual_stock: actualStockValue,
-                    notes: trimmedNotes
-                });
+                    actual_stock: calculatedActual,
+                    selisih: calculatedSelisih,
+                    notes: trimmedNotes,
+                    created_by: profile?.uuid || ''
+                };
+                // Edit record
+                await tcpService.updateTcpRecord(updatePayload);
                 setSuccessMsg('Data TCP berhasil diperbarui.');
             } else {
-                // Create new record
-                await tcpService.createTcpRecord({
+                const createPayload = {
                     company_id: companyId,
                     shipment_id: selectedShipmentId,
                     product_id: productId,
                     tcp_value: tcpNum,
                     total_in: totalIn,
                     total_out: totalOut,
-                    actual_stock: actualStockValue,
+                    actual_stock: calculatedActual,
+                    selisih: calculatedSelisih,
                     current_stock_snapshot: stokSistemTeoritis,
-                    notes: trimmedNotes
-                });
+                    notes: trimmedNotes,
+                    created_by: profile?.uuid || ''
+                };
+                // Create new record
+                await tcpService.createTcpRecord(createPayload);
                 setSuccessMsg('Data TCP berhasil disimpan.');
             }
 
@@ -320,17 +327,22 @@ const TcpInput = () => {
 
         setSubmitting(true);
         try {
-            // Calculate target actual stock for inventory adjustments
-            const actualStockValue = stokAktual;
+            // Kalkulasi eksplisit untuk target aktual stok & selisih
+            const calculatedSelisih = tcpNum - stokSistemTeoritis;
+            const calculatedActual = stokSistemTeoritis + calculatedSelisih;
 
-            // 1. Save any updated values
-            await tcpService.updateTcpRecord({
+            const resubmitPayload = {
                 id: selectedRecord.id,
                 inventory_adjustment_id: selectedRecord.inventory_adjustment_id,
                 tcp_value: tcpNum,
-                actual_stock: actualStockValue,
-                notes: trimmedNotes
-            });
+                actual_stock: calculatedActual,
+                selisih: calculatedSelisih,
+                notes: trimmedNotes,
+                created_by: profile?.uuid || ''
+            };
+
+            // 1. Save any updated values
+            await tcpService.updateTcpRecord(resubmitPayload);
 
             // 2. Perform resubmission (updates status to 'ON_REQUEST' and clears rejection notes)
             await tcpService.resubmitTcpRecord(selectedRecord.inventory_adjustment_id);
@@ -353,7 +365,7 @@ const TcpInput = () => {
         setError(null);
         setSubmitting(true);
         try {
-            await tcpService.approveTcpAdjustment(record.inventory_adjustment_id);
+            await tcpService.approveTcpAdjustment(record.inventory_adjustment_id, profile?.uuid || '');
             setSuccessMsg('Data TCP disetujui.');
             await fetchTcpRecords();
             await fetchShipments();

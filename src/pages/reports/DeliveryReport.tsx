@@ -86,11 +86,11 @@ const DeliveryReport = () => {
             'No. SO': row.order_no || '',
             'No. PO': row.po_number || '',
             'No. SJ': row.sj_number || '',
-            'Tipe Pengiriman': row.transaction_type || '',
+            'Tipe Pengiriman': row.delivery_type || '',
             'Customer': row.customer_name || '',
-            'Produk Publish': row.published_product || '',
+            'Produk Publish': row.published_product_name || '',
             'Produk Internal': row.internal_product_name || '',
-            'Qty (Kg)': row.qty_kg || 0,
+            'Qty (Kg)': row.produk_net || 0,
             'Blending': row.type_blending || '',
             'Tipe Produksi': row.type_production || '',
             'Transporter': row.transporter_name || '-',
@@ -143,7 +143,7 @@ const DeliveryReport = () => {
             )
         },
         {
-            accessorKey: 'transaction_type',
+            accessorKey: 'delivery_type',
             header: 'Tipe Pengiriman',
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
@@ -153,7 +153,7 @@ const DeliveryReport = () => {
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
-            accessorKey: 'published_product', 
+            accessorKey: 'published_product_name', 
             header: 'Produk Publish',
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
@@ -163,7 +163,7 @@ const DeliveryReport = () => {
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
-            accessorKey: 'qty_kg', 
+            accessorKey: 'produk_net', 
             header: 'Qty (Kg)', 
             aggregationFn: 'sum',
             AggregatedCell: ({ cell }: any) => (
