@@ -161,8 +161,11 @@ const Products = () => {
             return;
         }
 
+        // Remove relational/virtual fields before saving to prevent schema cache errors
+        const { company, company_name, ...cleanFormData } = formData as any;
+
         const payload = {
-            ...formData,
+            ...cleanFormData,
             sku_code: trimmedSku,
             name: trimmedName,
         };

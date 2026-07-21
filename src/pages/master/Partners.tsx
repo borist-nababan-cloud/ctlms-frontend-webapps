@@ -263,8 +263,11 @@ const Partners = () => {
             return;
         }
 
+        // Remove relational/virtual fields before saving to prevent schema cache errors
+        const { company, company_name, ...cleanFormData } = formData as any;
+
         const payload: Partial<MasterPartner> = {
-            ...formData,
+            ...cleanFormData,
             name: trimmedName,
             tax_id: trimmedTaxId,
             address: trimmedAddress,
