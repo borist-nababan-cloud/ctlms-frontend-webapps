@@ -881,7 +881,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
 
         try {
             // Re-calculate sum-based net weights at submission time to ensure correct database values
-            const itemsPayload = data.items.map((item, index) => {
+            const itemsPayload = data.items.map((item) => {
                 const currentNet = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
                 const calculatedProdukNet = currentNet;
 

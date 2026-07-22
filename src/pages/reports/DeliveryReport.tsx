@@ -171,7 +171,7 @@ const DeliveryReport = () => {
                     {new Intl.NumberFormat('id-ID').format(cell.getValue() || 0)}
                 </strong>
             ),
-            Cell: ({ cell, row }: any) => {
+            Cell: ({ cell }: any) => {
                 return new Intl.NumberFormat('id-ID').format(cell.getValue() || 0);
             }
         },
