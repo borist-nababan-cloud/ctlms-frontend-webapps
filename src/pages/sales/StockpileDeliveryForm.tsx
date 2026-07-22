@@ -37,6 +37,7 @@ import ScannerHub from '../../components/common/ScannerHub';
 
 interface DeliveryOrderItemFormValue {
     id?: string;
+    db_id?: string;
     internal_product_id: string;
     shipment_id?: string | null;
     vessel_name?: string | null;
@@ -91,6 +92,7 @@ interface DeliveryOrderItemRowProps {
     onOpenScanner: (idx: number) => void;
     errors: any;
     isLocked: boolean;
+    register: any;
 }
 
 const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
@@ -108,7 +110,8 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
     submitting,
     onOpenScanner,
     errors,
-    isLocked
+    isLocked,
+    register
 }) => {
     // Watch the selected internal product for this row to fetch shipments
     const selectedProductId = useWatch({
@@ -207,6 +210,7 @@ const DeliveryOrderItemRow: React.FC<DeliveryOrderItemRowProps> = ({
                 </Box>
                 <Grid container spacing={2}>
                     <Grid size={{ xs: 12, md: 4 }}>
+                        <input type="hidden" {...register(`items.${index}.db_id`)} />
                         <Controller
                             name={`items.${index}.internal_product_id`}
                             control={control}
@@ -465,7 +469,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
     const [isBlendingManuallyEdited, setIsBlendingManuallyEdited] = useState(false);
     const [isHeaderManuallyEdited, setIsHeaderManuallyEdited] = useState(false);
 
-    const { control, handleSubmit, watch, setValue, getValues, reset, formState: { errors } } = useForm<StockpileDeliveryFormValues>({
+    const { register, control, handleSubmit, watch, setValue, getValues, reset, formState: { errors } } = useForm<StockpileDeliveryFormValues>({
         defaultValues: {
             sales_order_id: '',
             company_id: '',
@@ -564,6 +568,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                         adjust_weight: Number(deliveryOrder.adjust_weight) || 0,
                         items: itemsData.map(item => ({
                             id: item.id,
+                            db_id: item.id,
                             internal_product_id: item.internal_product_id || '',
                             shipment_id: item.shipment_id || '',
                             vessel_name: item.vessel_name || '',
@@ -675,7 +680,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         setTrukList(newTrukList);
 
         if (hasError) {
-            setWeightError("Urutan timbangan batu salah! Produk Net negatif.");
+            setWeightError("Urutan timbangan truk salah (Netto negatif)");
         } else {
             let tareSequenceError = false;
             for (let i = 1; i < newTrukList.length; i++) {
@@ -805,7 +810,13 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
         for (let i = 0; i < data.items.length; i++) {
             const item = data.items[i];
             if (!item.internal_product_id) {
-                setError(`Produk Internal untuk Batu #${i + 1} wajib dipilih.`);
+                setError(`Mohon pilih Produk Internal (Raw) untuk setiap truk`);
+                setSubmitting(false);
+                return;
+            }
+            const currentNet = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
+            if (!currentNet || currentNet === 0 || isNaN(currentNet)) {
+                setError(`Truk belum diisi dengan benar`);
                 setSubmitting(false);
                 return;
             }
@@ -870,15 +881,14 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
 
         try {
             // Re-calculate sum-based net weights at submission time to ensure correct database values
-            const itemsPayload = data.items.map((item) => {
+            const itemsPayload = data.items.map((item, index) => {
                 const currentNet = Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0));
                 const calculatedProdukNet = currentNet;
 
-                return {
-                    id: item.id,
-                    internal_product_id: item.internal_product_id || '',
-                    shipment_id: item.shipment_id || '',
-                    vessel_name: item.vessel_name || '',
+                const payloadRow: any = {
+                    internal_product_id: item.internal_product_id,
+                    shipment_id: null,
+                    vessel_name: null,
                     type_production_id: item.type_production_id || null,
                     blending_id: null,
                     truck_plate: item.truck_plate?.trim().toUpperCase() || '',
@@ -887,8 +897,17 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                     tare_weight: Number(item.tare_weight) || 0,
                     net_weight: currentNet,
                     produk_net: calculatedProdukNet,
-                    photo_url: item.photo_url || ''
+                    photo_url: item.photo_url || null
                 };
+
+                if (item.db_id) {
+                    payloadRow.id = item.db_id;
+                }
+
+                if (deliveryOrder?.id) {
+                    payloadRow.do_id = deliveryOrder.id;
+                };
+                return payloadRow;
             });
 
             // Header weights and values are populated from form state
@@ -1345,6 +1364,7 @@ const StockpileDeliveryForm: React.FC<StockpileDeliveryFormProps> = ({
                                             onOpenScanner={(idx) => setActiveScannerIndex(idx)}
                                             errors={errors}
                                             isLocked={isLocked}
+                                            register={register}
                                         />
                                     ))}
                                 </Stack>

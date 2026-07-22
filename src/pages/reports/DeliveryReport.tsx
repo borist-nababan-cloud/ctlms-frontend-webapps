@@ -90,7 +90,7 @@ const DeliveryReport = () => {
             'Customer': row.customer_name || '',
             'Produk Publish': row.published_product_name || '',
             'Produk Internal': row.internal_product_name || '',
-            'Qty (Kg)': row.produk_net || 0,
+            'Qty (Kg)': row.qty_kg || 0,
             'Blending': row.type_blending || '',
             'Tipe Produksi': row.type_production || '',
             'Transporter': row.transporter_name || '-',
@@ -163,7 +163,7 @@ const DeliveryReport = () => {
             Cell: ({ cell }: any) => cell.getValue() || '-'
         },
         { 
-            accessorKey: 'produk_net', 
+            accessorKey: 'qty_kg', 
             header: 'Qty (Kg)', 
             aggregationFn: 'sum',
             AggregatedCell: ({ cell }: any) => (
@@ -171,7 +171,9 @@ const DeliveryReport = () => {
                     {new Intl.NumberFormat('id-ID').format(cell.getValue() || 0)}
                 </strong>
             ),
-            Cell: ({ cell }: any) => new Intl.NumberFormat('id-ID').format(cell.getValue() || 0) 
+            Cell: ({ cell, row }: any) => {
+                return new Intl.NumberFormat('id-ID').format(cell.getValue() || 0);
+            }
         },
         { 
             accessorKey: 'type_blending', 
@@ -205,7 +207,7 @@ const DeliveryReport = () => {
         data: tableData,
         state: { isLoading: loading },
         enableGrouping: true,
-        getRowId: (_, index) => String(index),
+        getRowId: (row) => row.item_id || String(Math.random()),
         muiTableBodyRowProps: ({ row }) => ({
             sx: {
                 backgroundColor: row.original.is_cancel 

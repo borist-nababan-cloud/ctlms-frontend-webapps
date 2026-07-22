@@ -166,7 +166,7 @@ export const deliveryService = {
                     throw new Error("Validation Error: truck_plate is missing or empty");
                 }
 
-                const rawPayload = {
+                const rawPayload: any = {
                     do_id: doId,
                     internal_product_id: item.internal_product_id,
                     truck_plate: item.truck_plate.trim().toUpperCase(),
@@ -181,6 +181,9 @@ export const deliveryService = {
                     blending_id: item.blending_id || null,
                     produk_net: item.produk_net !== undefined && item.produk_net !== null ? Number(item.produk_net) : Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0))
                 };
+                if (item.id) {
+                    rawPayload.id = item.id;
+                }
 
                 return cleanPayload(rawPayload);
             });
@@ -210,6 +213,7 @@ export const deliveryService = {
             throw new Error("Validation Error: doId is missing or invalid");
         }
 
+
         const totalNetWeight = deliveryOrder.net_weight !== undefined && deliveryOrder.net_weight !== null
             ? deliveryOrder.net_weight
             : (items || []).reduce((sum, item) => {
@@ -229,15 +233,39 @@ export const deliveryService = {
             .select()
             .single();
 
-        if (headerError) throw headerError;
+        if (headerError) {
+            console.error('[DEBUG deliveryService] headerError:', headerError);
+            throw headerError;
+        }
 
-
-        const { error: deleteError } = await supabase
+        // Fetch existing items to determine what to delete
+        const { data: existingItems, error: fetchError } = await supabase
             .from('delivery_order_items')
-            .delete()
+            .select('id, do_id')
             .eq('do_id', doId);
 
-        if (deleteError) throw deleteError;
+        if (fetchError) {
+            console.error('[DEBUG deliveryService] fetchError for existing items:', fetchError);
+            throw fetchError;
+        }
+
+        const newItemIds = (items || []).map(i => i.id).filter(Boolean);
+        const itemsToDelete = (existingItems || []).filter(existing => !newItemIds.includes(existing.id));
+
+        if (itemsToDelete.length > 0) {
+            const deleteIds = itemsToDelete.map(i => i.id);
+            const { error: deleteError } = await supabase
+                .from('delivery_order_items')
+                .delete()
+                .in('id', deleteIds)
+                .eq('do_id', doId); // Passing do_id as well to satisfy the 'mengirimkan do_id yang valid' requirement on DELETE
+
+            if (deleteError) {
+                console.error('[DEBUG deliveryService] deleteError:', deleteError);
+                throw deleteError;
+            }
+        } else {
+        }
 
         if (items && items.length > 0) {
             const itemsPayload = items.map(item => {
@@ -248,7 +276,7 @@ export const deliveryService = {
                     throw new Error("Validation Error: truck_plate is missing or empty");
                 }
 
-                const rawPayload = {
+                const rawPayload: any = {
                     do_id: doId,
                     internal_product_id: item.internal_product_id,
                     truck_plate: item.truck_plate.trim().toUpperCase(),
@@ -263,15 +291,38 @@ export const deliveryService = {
                     blending_id: item.blending_id || null,
                     produk_net: item.produk_net !== undefined && item.produk_net !== null ? Number(item.produk_net) : Math.max(0, (Number(item.gross_weight) || 0) - (Number(item.tare_weight) || 0))
                 };
+                if (item.id) {
+                    rawPayload.id = item.id;
+                }
 
                 return cleanPayload(rawPayload);
             });
 
-            const { error: itemsError } = await supabase
-                .from('delivery_order_items')
-                .insert(itemsPayload);
 
-            if (itemsError) throw itemsError;
+            const itemsToUpdate = itemsPayload.filter(item => item.id);
+            const itemsToInsert = itemsPayload.filter(item => !item.id);
+
+            if (itemsToUpdate.length > 0) {
+                const { error: updateError } = await supabase
+                    .from('delivery_order_items')
+                    .upsert(itemsToUpdate);
+
+                if (updateError) {
+                    console.error('[DEBUG deliveryService] updateError (Upsert):', updateError);
+                    throw updateError;
+                }
+            }
+
+            if (itemsToInsert.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('delivery_order_items')
+                    .insert(itemsToInsert);
+
+                if (insertError) {
+                    console.error('[DEBUG deliveryService] insertError (Insert):', insertError);
+                    throw insertError;
+                }
+            }
         }
 
         return headerData;
@@ -304,6 +355,9 @@ export const deliveryService = {
                 ),
                 transporter:master_partners!transporter_id (
                     name
+                ),
+                creator:user_profiles!created_by (
+                    real_name
                 ),
                 delivery_order_items (
                     *,
@@ -353,6 +407,7 @@ export const deliveryService = {
                 vessel_display: vesselDisplay,
                 internal_product_name: firstItem.internal_product?.name || '-',
                 net_weight: doItem.delivery_type === 'STOCKPILE' && doItem.net_weight !== null && doItem.net_weight !== undefined ? Number(doItem.net_weight) : totalNetWeight,
+                created_by_name: doItem.creator?.real_name || '-',
                 items: items
             };
         });

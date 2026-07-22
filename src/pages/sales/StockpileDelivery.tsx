@@ -158,6 +158,7 @@ const StockpileDelivery: React.FC = () => {
             setPrevDeliveries(filteredData);
         } catch (err: any) {
             console.error('Error loading delivery history:', err);
+            setError('Terjadi kesalahan pada sistem saat memuat riwayat pengiriman.');
         } finally {
             setTableLoading(false);
         }
