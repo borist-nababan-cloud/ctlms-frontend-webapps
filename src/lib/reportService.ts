@@ -317,7 +317,7 @@ export const reportService = {
         // 2. Fetch DO Items to correctly map type_production_id
         // view_delivery_report does not export item_id, so we must fetch delivery_order_items and match them carefully
         const doIds = Array.from(new Set(data.map((row: any) => row.id).filter(Boolean)));
-        const { data: doItems, error: doItemsError } = await supabase
+        const { data: doItems } = await supabase
             .from('delivery_order_items')
             .select('id, do_id, truck_plate, produk_net, type_production_id')
             .in('do_id', doIds);
