@@ -314,30 +314,16 @@ export const reportService = {
             }
         }
 
-        // 2. Fetch DO Items (Qty and Type Production ID)
-        const doIds = data.map((row: any) => row.id);
+        // 2. Fetch DO Items to correctly map type_production_id
+        // view_delivery_report does not export item_id, so we must fetch delivery_order_items and match them carefully
+        const doIds = Array.from(new Set(data.map((row: any) => row.id).filter(Boolean)));
         const { data: doItems, error: doItemsError } = await supabase
             .from('delivery_order_items')
-            .select('do_id, produk_net, type_production_id')
+            .select('id, do_id, truck_plate, produk_net, type_production_id')
             .in('do_id', doIds);
             
-        let qtyMap: Record<string, number> = {};
-        let typeProdIdMap: Record<string, string> = {};
-        
-        if (!doItemsError && doItems) {
-            doItems.forEach(item => {
-                if (item.do_id && item.produk_net != null) {
-                    qtyMap[item.do_id] = (qtyMap[item.do_id] || 0) + Number(item.produk_net);
-                }
-                // If there are multiple items, we'll take the first non-null type_production_id
-                if (item.do_id && item.type_production_id && !typeProdIdMap[item.do_id]) {
-                    typeProdIdMap[item.do_id] = item.type_production_id;
-                }
-            });
-        }
-
         // 3. Map Type Production Names
-        const typeProdIds = Array.from(new Set(Object.values(typeProdIdMap)));
+        const typeProdIds = Array.from(new Set((doItems || []).map(i => i.type_production_id).filter(Boolean)));
         let typeProdNameMap: Record<string, string> = {};
         if (typeProdIds.length > 0) {
             const { data: prodTypes } = await supabase
@@ -350,12 +336,43 @@ export const reportService = {
             }
         }
 
-        return data.map((row: any) => ({
-            ...row,
-            produk_net: qtyMap[row.id] || 0,
-            transporter_name: row.transporter_id ? (transporterMap[row.transporter_id] || '-') : '-',
-            type_production: typeProdIdMap[row.id] ? (typeProdNameMap[typeProdIdMap[row.id]] || '-') : '-'
-        }));
+        // Match them up by consuming available items
+        let availableItems = doItems ? [...doItems] : [];
+        
+        return data.map((row: any) => {
+            let matchingItemIndex = availableItems.findIndex(item => 
+                item.do_id === row.id && 
+                item.truck_plate === row.truck_plate && 
+                Number(item.produk_net) === Number(row.qty_kg)
+            );
+            
+            if (matchingItemIndex === -1) {
+                // Fallback to matching by do_id and truck_plate
+                matchingItemIndex = availableItems.findIndex(item => 
+                    item.do_id === row.id && 
+                    item.truck_plate === row.truck_plate
+                );
+            }
+            if (matchingItemIndex === -1) {
+                // Fallback to just do_id
+                matchingItemIndex = availableItems.findIndex(item => item.do_id === row.id);
+            }
+
+            let matchingItem = null;
+            if (matchingItemIndex !== -1) {
+                matchingItem = availableItems[matchingItemIndex];
+                availableItems.splice(matchingItemIndex, 1); // Consume to prevent duplicate matching
+            }
+
+            const tId = matchingItem?.type_production_id;
+            
+            return {
+                ...row,
+                item_id: matchingItem?.id || row.item_id || String(Math.random()),
+                transporter_name: row.transporter_id ? (transporterMap[row.transporter_id] || '-') : '-',
+                type_production: tId ? (typeProdNameMap[tId] || '-') : '-'
+            };
+        });
     },
 
     // 6. TCP Input / Laporan TCP

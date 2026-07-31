@@ -13,7 +13,8 @@ import {
     Select,
     MenuItem,
     Alert,
-    CircularProgress
+    CircularProgress,
+    TextField
 } from '@mui/material';
 import { Edit as EditIcon } from '@mui/icons-material';
 import { AgGridReact } from 'ag-grid-react';
@@ -55,6 +56,7 @@ const UserManagement = () => {
     // Form settings
     const { control, handleSubmit, watch, setValue, reset } = useForm<Partial<UserProfile>>({
         defaultValues: {
+            real_name: '',
             user_role: null,
             company_id: null,
             wh_id: null
@@ -129,6 +131,7 @@ const UserManagement = () => {
     const handleEdit = (user: UserProfileDetailed) => {
         setSelectedUser(user);
         reset({
+            real_name: user.real_name || '',
             user_role: user.user_role,
             company_id: user.company_id,
             wh_id: user.wh_id
@@ -140,6 +143,7 @@ const UserManagement = () => {
         setOpen(false);
         setSelectedUser(null);
         reset({
+            real_name: '',
             user_role: null,
             company_id: null,
             wh_id: null
@@ -154,6 +158,7 @@ const UserManagement = () => {
             
             // Map form values carefully
             const updatePayload: Partial<UserProfile> = {
+                real_name: data.real_name || null,
                 user_role: data.user_role || null,
                 company_id: data.company_id || null,
                 wh_id: data.wh_id || null
@@ -314,6 +319,20 @@ const UserManagement = () => {
                     </DialogTitle>
                     <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
                         
+                        {/* Nama Asli */}
+                        <Controller
+                            name="real_name"
+                            control={control}
+                            render={({ field }) => (
+                                <TextField
+                                    {...field}
+                                    label={t('users.real_name') || 'Nama Asli'}
+                                    fullWidth
+                                    variant="outlined"
+                                />
+                            )}
+                        />
+
                         {/* Peran */}
                         <FormControl fullWidth>
                             <InputLabel id="role-select-label">{t('users.select_role')}</InputLabel>
