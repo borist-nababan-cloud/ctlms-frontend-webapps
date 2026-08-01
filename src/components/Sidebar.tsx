@@ -49,9 +49,9 @@ const MENU_ITEMS: MenuItemInfo[] = [
     {
         key: 'sidebar.master_data',
         icon: <MasterDataIcon />,
-        allowedRoles: [1, 4, 5, 6],
+        allowedRoles: [1, 4, 8],
         children: [
-            { key: 'sidebar.companies', path: '/master/companies', icon: <CompaniesIcon />, allowedRoles: [1, 4, 5, 6] },
+            { key: 'sidebar.companies', path: '/master/companies', icon: <CompaniesIcon />, allowedRoles: [1, 8] },
             { key: 'sidebar.type_production', path: '/master/type-production', icon: <MasterDataIcon />, allowedRoles: [1, 4] },
             { key: 'sidebar.partners', path: '/master/partners', icon: <PartnersIcon />, allowedRoles: [1, 4] },
             { key: 'sidebar.products', path: '/master/products', icon: <ProductsIcon />, allowedRoles: [1, 4] },
@@ -65,7 +65,7 @@ const MENU_ITEMS: MenuItemInfo[] = [
         children: [
             { key: 'sidebar.inventory_dashboard', path: '/inventory', icon: <DashboardIcon />, allowedRoles: [1, 4, 6, 8] },
             { key: 'sidebar.inventory_adjustment', path: '/inventory/adjustment', icon: <MasterDataIcon />, allowedRoles: [1, 4] },
-            { key: 'sidebar.inventory_tcp', path: '/inventory/tcp', icon: <DescriptionIcon />, allowedRoles: [1, 6] }
+            { key: 'sidebar.inventory_tcp', path: '/inventory/tcp', icon: <DescriptionIcon />, allowedRoles: [1, 4] }
         ]
     },
     {
@@ -76,7 +76,7 @@ const MENU_ITEMS: MenuItemInfo[] = [
             { key: 'sidebar.sales_master', path: '/sales/orders', icon: <DescriptionIcon />, allowedRoles: [1, 6] },
             { key: 'sidebar.sales_direct_barge', path: '/sales/direct-barge', icon: <DirectionsBoatIcon />, allowedRoles: [1, 6] },
             { key: 'sidebar.sales_stockpile', path: '/sales/stockpile', icon: <WarehouseIcon />, allowedRoles: [1, 6] },
-            { key: 'sidebar.sales_cancellation', path: '/sales/cancellations', icon: <DescriptionIcon />, allowedRoles: [1, 4, 6] }
+            { key: 'sidebar.sales_cancellation', path: '/sales/cancellations', icon: <DescriptionIcon />, allowedRoles: [1, 4] }
         ]
     },
     {
